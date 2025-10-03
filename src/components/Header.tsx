@@ -4,127 +4,241 @@ import {
   faTags,
   faSun,
   faMoon,
+  faAngleDown,
 } from "@fortawesome/free-solid-svg-icons";
-import { useState, useEffect } from "react";
-import { Link, NavLink } from "react-router-dom";
-//import { useCart } from "../hooks/useCart";
-//import { useCart } from "../store/cart-context";
+import { useState, useEffect, useRef } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useCart } from "../hooks/useCart";
-
+import { useAuth } from "../hooks/useAuth";
+import { toast } from "react-toastify";
 
 export default function Header() { 
-
-  // Gestion du thème dark/light mode
-  // Initialisation : on vérifie si l'utilisateur a déjà une préférence sauvegardée
-  // Sinon, on utilise le mode "light" par défaut
-  const [theme, setTheme] = useState(() => {
+  // ⚡ ÉTAT DU THÈME - Gestion du mode sombre/clair avec persistance dans le localStorage
+  const [theme, setTheme] = useState<string>(() => {
     return localStorage.getItem("theme") === "dark" ? "dark" : "light";
   });
 
-  const { totalQuantity } = useCart();
+  // 🎯 VARIABLES D'ÉTAT - Gestion de l'ouverture/fermeture des menus déroulants
+  const isAdmin = true; // ⚠️ À remplacer par une logique d'authentification réelle
+  const [isUserMenuOpen, setUserMenuOpen] = useState<boolean>(false);
+  const [isAdminMenuOpen, setAdminMenuOpen] = useState<boolean>(false);
+  
+  // 🎯 HOOKS REACT ROUTER - Navigation et localisation
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // 🎯 RÉFÉRENCE - Pour détecter les clics en dehors du menu utilisateur
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Effet secondaire : applique le thème au DOM à chaque changement
-  // Le thème "dark" ajoute la classe "dark" à <html>, ce qui active les styles Tailwind dark:*
+  // 🎯 TOGGLES - Fonctions pour ouvrir/fermer les menus
+  const toggleAdminMenu = () => setAdminMenuOpen((prev) => !prev);
+  const toggleUserMenu = () => setUserMenuOpen((prev) => !prev);
+
+  // 🎯 HOOKS PERSONNALISÉS - Récupération des données globales
+  const { totalQuantity } = useCart();
+  const { isAuthenticated, logout } = useAuth();
+
+  // 🎯 EFFET - Gestion du thème et de la fermeture des menus au clic externe
   useEffect(() => {
+    // Application du thème au document
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
-  }, [theme]); // Se déclenche uniquement quand "theme" change
+    
+    // Fermeture des menus lors du changement de route
+    setAdminMenuOpen(false);
+    setUserMenuOpen(false);
+    
+    // 🎯 GESTIONNAIRE DE CLIC EXTERNE - Ferme les menus quand on clique ailleurs
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+        setAdminMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    
+    // 🧹 NETTOYAGE - Suppression de l'event listener au démontage
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [theme, location.pathname]); // Réexécuté quand le thème ou la route change
 
-  // Toggle du thème : bascule entre light et dark
-  // Utilise le pattern fonctionnel de setState pour garantir la cohérence
-  // Persiste le choix dans localStorage pour le retrouver au prochain chargement
+  // 🎯 BAScule du thème avec persistance
   const toggleTheme = () => {
     setTheme((prevTheme) => {
       const newTheme = prevTheme === "light" ? "dark" : "light";
-      localStorage.setItem("theme", newTheme); // 💾 Sauvegarde persistante
+      localStorage.setItem("theme", newTheme); // 💾 Persistance dans le localStorage
       return newTheme;
     });
   };
 
-  // Classes CSS réutilisables pour tous les liens de navigation
-  // Utilise les variants Tailwind dark:* pour s'adapter automatiquement au thème
+  // 🎯 DÉCONNEXION - Gestion de la déconnexion utilisateur
+  const handleLogout = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    logout(); // Appel de la fonction de déconnexation du hook useAuth
+    toast.success("Logged out successfully!");
+    navigate("/home"); // Redirection vers la page d'accueil
+  };
+
+  // 🎯 CLASSES CSS - Réutilisables pour la stylisation
   const navLinkClass =
     "text-center text-lg font-primary font-semibold text-primary py-2 dark:text-light hover:text-dark dark:hover:text-lighter";
 
-  return (
-    //  Header sticky : reste visible en haut lors du scroll
-    // z-20 : s'assure que le header reste au-dessus des autres éléments
-    <header className="border-b border-gray-300 dark:border-gray-600 sticky top-0 z-20 bg-normalbg dark:bg-darkbg">
-      {/* 📐 Container principal : largeur maximale de 1152px, centré */}
-      <div className="flex items-center justify-between mx-auto max-w-[1152px] px-6 py-4">
+  const dropdownLinkClass =
+    "block w-full text-left px-4 py-2 text-lg font-primary font-semibold text-primary dark:text-light hover:bg-gray-100 dark:hover:bg-gray-600";
 
-        {/* Logo/Brand : retour à l'accueil */}
+  return (
+    <header className="border-b border-gray-300 dark:border-gray-600 sticky top-0 z-20 bg-normalbg dark:bg-darkbg">
+      <div className="flex items-center justify-between mx-auto max-w-[1152px] px-6 py-4">
+        {/* 🎯 LOGO - Lien vers la page d'accueil */}
         <Link to="/" className={navLinkClass}>
           <FontAwesomeIcon icon={faTags} className="h-8 w-8" />
-          <span className="font-bold">Magasin d'autocollants</span>
+          <span className="font-bold">Eazy Stickers</span>
         </Link>
-
-        {/* Navigation principale */}
+        
+        {/* 🎯 NAVIGATION PRINCIPALE */}
         <nav className="flex items-center py-2 z-10">
-          
-          {/* Bouton de toggle du thème (Soleil/Lune) */}
-          {/* aria-label : important pour l'accessibilité (lecteurs d'écran) */}
+          {/* 🎯 BOUTON THEME - Basculer entre mode sombre/clair */}
           <button
             className="flex items-center justify-center mx-3 w-8 h-8 rounded-full border border-primary dark:border-light transition duration-300 hover:bg-gray-300 dark:hover:bg-gray-600"
             aria-label="Toggle theme"
             onClick={toggleTheme}
           >
-            {/* Icône dynamique : change selon le thème actif */}
             <FontAwesomeIcon
               icon={theme === "dark" ? faMoon : faSun}
               className="w-4 h-4 dark:text-light text-primary"
             />
           </button>
-
-          {/* Liste des liens de navigation */}
+          
           <ul className="flex space-x-6">
+            {/* 🎯 LIENS DE NAVIGATION - Navigation principale avec état actif */}
             <li>
-              {/* 🔗 NavLink : comme Link, mais avec détection de route active */}
-              {/* isActive : React Router détecte automatiquement si cette route est active */}
-              <NavLink 
-                to="/home" 
-                className={({ isActive }) =>
+              <NavLink
+                to="/home"
+                className={({ isActive }: { isActive: boolean }) =>
                   isActive ? `underline ${navLinkClass}` : navLinkClass
                 }
               >
-                Accueil
+                Home
               </NavLink>
             </li>
             <li>
-              <NavLink 
-                to="/about" 
-                className={({ isActive }) =>
+              <NavLink
+                to="/about"
+                className={({ isActive }: { isActive: boolean }) =>
                   isActive ? `underline ${navLinkClass}` : navLinkClass
                 }
               >
-                À propos
+                About
               </NavLink>
             </li>
             <li>
-              <NavLink 
-                to="/contact" 
-                className={({ isActive }) =>
+              <NavLink
+                to="/contact"
+                className={({ isActive }: { isActive: boolean }) =>
                   isActive ? `underline ${navLinkClass}` : navLinkClass
                 }
               >
                 Contact
               </NavLink>
             </li>
+            
+            {/* 🎯 MENU UTILISATEUR - Affiché seulement si authentifié */}
             <li>
-              <NavLink 
-                to="/login" 
-                className={({ isActive }) =>
-                  isActive ? `underline ${navLinkClass}` : navLinkClass
-                }
-              >
-                Se connecter
-              </NavLink>
+              {isAuthenticated ? (
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={toggleUserMenu}
+                    className="relative text-primary"
+                  >
+                    <span className={navLinkClass}>Hello John Doe</span>
+                    <FontAwesomeIcon
+                      icon={faAngleDown}
+                      className="text-primary dark:text-light w-6 h-6"
+                    />
+                  </button>
+                  
+                  {/* 🎯 MENU DÉROULANT UTILISATEUR */}
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 w-48 bg-normalbg dark:bg-darkbg border border-gray-300 dark:border-gray-600 rounded-md shadow-lg z-20 transition ease-in-out duration-200">
+                      <ul className="py-2">
+                        <li>
+                          <Link to="/profile" className={dropdownLinkClass}>
+                            Profile
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/orders" className={dropdownLinkClass}>
+                            Orders
+                          </Link>
+                        </li>
+                        
+                        {/* 🎯 SOUS-MENU ADMIN - Seulement pour les administrateurs */}
+                        {isAdmin && (
+                          <li>
+                            <button
+                              onClick={toggleAdminMenu}
+                              className={`${dropdownLinkClass} flex items-center justify-between`}
+                            >
+                              Admin
+                              <FontAwesomeIcon icon={faAngleDown} />
+                            </button>
+                            {isAdminMenuOpen && (
+                              <ul className="ml-4 mt-2 space-y-2">
+                                <li>
+                                  <Link
+                                    to="/admin/orders"
+                                    className={dropdownLinkClass}
+                                  >
+                                    Orders
+                                  </Link>
+                                </li>
+                                <li>
+                                  <Link
+                                    to="/admin/messages"
+                                    className={dropdownLinkClass}
+                                  >
+                                    Messages
+                                  </Link>
+                                </li>
+                              </ul>
+                            )}
+                          </li>
+                        )}
+
+                        {/* 🎯 DÉCONNEXION */}
+                        <li>
+                          <Link
+                            to="/home"
+                            onClick={handleLogout}
+                            className={dropdownLinkClass}
+                          >
+                            Logout
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // 🎯 LIEN DE CONNEXION - Si utilisateur non authentifié
+                <NavLink
+                  to="/login"
+                  className={({ isActive }: { isActive: boolean }) =>
+                    isActive ? `underline ${navLinkClass}` : navLinkClass
+                  }
+                >
+                  Login
+                </NavLink>
+              )}
             </li>
+            
+            {/* 🎯 PANIER - Avec indicateur de quantité */}
             <li>
-              {/* Panier : utilise Link au lieu de NavLink car pas besoin de détection active */}
               <Link to="/cart" className=" relative text-primary py-2">
                 <FontAwesomeIcon
                   icon={faShoppingBasket}

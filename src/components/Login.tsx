@@ -1,79 +1,122 @@
+import { useEffect, useRef } from "react";
 import PageTitle from "./PageTitle";
-import { Link } from "react-router-dom";
+import {
+  Link,
+  Form,
+  useActionData,
+  useNavigation,
+  useNavigate,
+} from "react-router-dom";
+import { toast } from "react-toastify";
+
+import type { LoginResponse } from "../types/auth";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Login() {
-  // Styles réutilisables : définis comme constantes pour éviter la répétition
-  // Pattern DRY (Don't Repeat Yourself)
+  const actionData = useActionData() as LoginResponse | undefined;
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+  const navigate = useNavigate();
+  const { loginSuccess } = useAuth();
+  
+  // ✅ useRef pour éviter de traiter actionData plusieurs fois
+  const hasProcessedLogin = useRef(false);
+
+  useEffect(() => {
+    // ✅ Si pas de données ou déjà traité, on sort
+    if (!actionData || hasProcessedLogin.current) return;
+
+    if (actionData.success) {
+      if (actionData.jwtToken && actionData.user) {
+        // ✅ Marquer comme traité AVANT d'appeler loginSuccess
+        hasProcessedLogin.current = true;
+        
+        loginSuccess(actionData.jwtToken, actionData.user);
+        
+        const from = sessionStorage.getItem("redirectPath") || "/home";
+        sessionStorage.removeItem("redirectPath");
+        
+        toast.success("Login successful!");
+        navigate(from, { replace: true });
+      }
+    } else if (actionData.errors) {
+      hasProcessedLogin.current = true;
+      toast.error(actionData.errors.message || "Login failed.");
+    }
+  }, [actionData, loginSuccess, navigate]);
+
+  // ✅ Réinitialiser le flag quand on commence une nouvelle soumission
+  useEffect(() => {
+    if (isSubmitting) {
+      hasProcessedLogin.current = false;
+    }
+  }, [isSubmitting]);
+
   const labelStyle =
     "block text-lg font-semibold text-primary dark:text-light mb-2";
   const textFieldStyle =
     "w-full px-4 py-2 text-base border rounded-md transition border-primary dark:border-light focus:ring focus:ring-dark dark:focus:ring-lighter focus:outline-none text-gray-800 dark:text-lighter bg-white dark:bg-gray-600 placeholder-gray-400 dark:placeholder-gray-300";
-  
+
   return (
-    // Container principal : centré verticalement et horizontalement
     <div className="min-h-[852px] flex items-center justify-center font-primary dark:bg-darkbg">
-      
-      {/* Carte de formulaire : max-width pour ne pas être trop large sur desktop */}
       <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg max-w-md w-full px-8 py-6">
+        <PageTitle title="Login" />
         
-        {/* Titre de la page */}
-        <PageTitle title="Se connecter" />
-        
-        {/* Formulaire de connexion */}
-        {/* space-y-6 : espacement vertical entre les champs */}
-        <form className="space-y-6">
-          
-          {/* Champ Username */}
+        <Form method="POST" className="space-y-6">
+          {/* Username Field */}
           <div>
             <label htmlFor="username" className={labelStyle}>
-              Nom d'utilisateur
+              Username
             </label>
             <input
               id="username"
               type="text"
               name="username"
-              placeholder="Votre nom d'utilisateur"
+              placeholder="Your Username"
+              autoComplete="username"
               required
               className={textFieldStyle}
             />
           </div>
 
-          {/* Champ Password */}
+          {/* Password Field */}
           <div>
             <label htmlFor="password" className={labelStyle}>
-              Mot de passe
+              Password
             </label>
             <input
               id="password"
-              type="password" 
+              type="password"
               name="password"
-              placeholder="Votre mot de passe"
+              placeholder="Your Password"
+              autoComplete="current-password"
               required
-              minLength={8}  
-              maxLength={20} 
+              minLength={4}
+              maxLength={20}
               className={textFieldStyle}
             />
           </div>
 
+          {/* Submit Button */}
           <div>
-            {/* type="submit" : déclenche la soumission du formulaire */}
             <button
               type="submit"
-              className="w-full px-6 py-2 text-white dark:text-black text-xl rounded-md transition duration-200 bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter"
+              disabled={isSubmitting}
+              className="w-full px-6 py-2 text-white dark:text-black text-xl rounded-md transition duration-200 bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Se connecter
+              {isSubmitting ? "Authenticating..." : "Login"}
             </button>
           </div>
-        </form>
+        </Form>
 
-        {/* Lien vers la page d'inscription */}
+        {/* Register Link */}
         <p className="text-center text-gray-600 dark:text-gray-400 mt-4">
-          Vous n'avez pas de compte ?{" "}
+          Don't have an account?{" "}
           <Link
             to="/register"
             className="text-primary dark:text-light hover:text-dark dark:hover:text-primary transition duration-200"
           >
-            Inscrivez-vous ici
+            Register Here
           </Link>
         </p>
       </div>

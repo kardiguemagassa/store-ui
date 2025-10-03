@@ -122,7 +122,7 @@ export default function ProductListings({ products }: ProductListingsProps) {
           ))
         ) : (
           // ❌ Cas 2 : aucun produit ne correspond aux filtres
-          <p className="text-center font-primary font-bold text-lg text-primary">
+          <p className="text-center font-primary font-bold text-lg text-primary dark:text-light">
             No products found
           </p>
         )}

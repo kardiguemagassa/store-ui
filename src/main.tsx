@@ -21,6 +21,16 @@ import ProductDetail from './components/ProductDetail.tsx';
 import { productDetailLoader } from './loaders/productDetailLoader.ts';
 //import { CartProvider } from './store/cart-context.tsx';
 import { CartProvider } from './context/CartContext.tsx';
+import { loginAction } from './actions/loginAction.ts';
+import { AuthProvider } from './context/AuthProvider.tsx';
+import CheckoutForm from './components/CheckoutForm.tsx';
+import ProtectedRoute from './components/ProtectedRoute.tsx';
+import Orders from './components/Orders.tsx';
+import AdminOrders from './components/admin/AdminOrders.tsx';
+import Messages from './components/admin/Messages.tsx';
+import Profile from './components/Profile.tsx';
+import Register from './components/Register.tsx';
+import { registerAction } from './actions/registerAction.ts';
 
 // 🗺️ Définition des routes avec createRoutesFromElements
 // Cette approche utilise la syntaxe JSX pour définir les routes (alternative à l'objet JavaScript)
@@ -43,8 +53,10 @@ const routeDefinitions = createRoutesFromElements(
     {/* Utilisé pour traiter les données du formulaire de contact */}
     <Route path="/contact" element={<Contact />} action={contactAction} />
     
-    <Route path="/login" element={<Login />} />
+    <Route path="/login" element={<Login />} action={loginAction} />
+    <Route path="/register" element={<Register />} action={registerAction} />
     <Route path="/cart" element={<Cart />} />
+    
     
     {/* Route dynamique avec paramètre :productId */}
     {/* Exemple : /products/123 → productId = "123" */}
@@ -52,6 +64,14 @@ const routeDefinitions = createRoutesFromElements(
     <Route path="/products/:productId" element={<ProductDetail />} 
      loader={productDetailLoader}  
     />
+
+    <Route element={<ProtectedRoute />}>
+      <Route path="/checkout" element={<CheckoutForm />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/orders" element={<Orders />} />
+      <Route path="/admin/orders" element={<AdminOrders />} />
+      <Route path="/admin/messages" element={<Messages />} />
+    </Route>
   </Route>
 );
 
@@ -70,9 +90,12 @@ createRoot(document.getElementById('root')!).render(
   // - N'affecte PAS la production
   <StrictMode>
 
-    <CartProvider>
-      <RouterProvider router={appRouter} />
-    </CartProvider>
+
+   <AuthProvider>
+      <CartProvider>
+        <RouterProvider router={appRouter} />
+      </CartProvider>
+    </AuthProvider>
     
     {/* RouterProvider : fournit le contexte de routing à toute l'application */}
     {/* Permet à tous les composants d'utiliser useNavigate, useParams, etc. */}
