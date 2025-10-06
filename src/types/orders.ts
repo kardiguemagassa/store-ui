@@ -82,3 +82,39 @@ export interface OrderStats {
   pendingOrders: number;
   deliveredOrders: number;
 }
+
+
+// à revoir 
+// ✅ Interface pour ce que le backend retourne RÉELLEMENT
+export interface BackendOrderResponse {
+  orderId: number;
+  status: string;
+  totalPrice: number;
+  createdAt: string;
+  items: Array<{
+    productId?: number;
+    productName?: string;
+    productImageUrl?: string;
+    imageUrl?: string;
+    quantity?: number;
+    price?: number;
+    subtotal?: number;
+  }>;
+}
+
+// ✅ Votre interface frontend existante (pour l'affichage)
+export interface OrderResponse {
+  orderId: number;
+  orderNumber: string;
+  totalPrice: number;
+  status: string;
+  paymentStatus: string;
+  paymentId: string;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItemResponse[];
+  customer: OrderCustomer;
+  shippingAddress: ShippingAddress;
+}
+
+// ... autres interfaces inchangées

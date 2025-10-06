@@ -37,6 +37,9 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import OrderSuccess from './components/OrderSuccess.tsx';
 import { productDetailLoader } from './loaders/productDetailLoader.ts';
+import { ordersLoader } from './loaders/ordersLoader.ts';
+import { adminOrdersLoader } from './loaders/adminOrdersLoader.ts';
+import { messagesLoader } from './loaders/messagesLoader.ts';
 //import OrderSuccess from "./components/OrderSuccess.jsx";
 
 
@@ -75,9 +78,9 @@ const routeDefinitions = createRoutesFromElements(
     <Route element={<ProtectedRoute />}>
       <Route path="/checkout" element={<CheckoutForm />} />
       <Route path="/order-success" element={<OrderSuccess />} />
-      <Route path="/orders" element={<Orders />} />
-      <Route path="/admin/orders" element={<AdminOrders />} />
-      <Route path="/admin/messages" element={<Messages />} />
+      <Route path="/orders" element={<Orders />} loader={ordersLoader} />
+      <Route path="/admin/orders"element={<AdminOrders />}loader={adminOrdersLoader}/>
+      <Route path="/admin/messages"element={<Messages />} loader={messagesLoader}/>
     </Route>
   </Route>
 );
