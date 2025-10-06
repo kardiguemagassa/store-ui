@@ -1,7 +1,23 @@
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
 export interface User {
   id: number;
-  username: string;
+  name: string;
   email?: string;
+  username?: string;
+  mobileNumber: string;
+  address?: Address;
+  roles: string[]; 
+  enabled?: boolean;
+  accountNonExpired?: boolean;
+  credentialsNonExpired?: boolean;
+  accountNonLocked?: boolean;
 }
 
 export interface LoginResponse {

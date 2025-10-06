@@ -18,7 +18,7 @@ import { Bounce, ToastContainer } from 'react-toastify';
 import Cart from './components/Cart.tsx';
 import { productsLoader } from './loaders/productsLoader.ts';
 import ProductDetail from './components/ProductDetail.tsx';
-import { productDetailLoader } from './loaders/productDetailLoader.ts';
+//import { productDetailLoader } from './loaders/productDetailLoader.ts';
 //import { CartProvider } from './store/cart-context.tsx';
 import { CartProvider } from './context/CartContext.tsx';
 import { loginAction } from './actions/loginAction.ts';
@@ -31,43 +31,50 @@ import Messages from './components/admin/Messages.tsx';
 import Profile from './components/Profile.tsx';
 import Register from './components/Register.tsx';
 import { registerAction } from './actions/registerAction.ts';
+import { profileLoader } from './loaders/profileLoader.ts';
+import { profileAction } from './actions/profileAction.ts';
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import OrderSuccess from './components/OrderSuccess.tsx';
+import { productDetailLoader } from './loaders/productDetailLoader.ts';
+//import OrderSuccess from "./components/OrderSuccess.jsx";
 
-// 🗺️ Définition des routes avec createRoutesFromElements
+
+const stripePromise = loadStripe(
+  "pk_test_51OhtIUDWbglQHB6CdSDFxtaP6MtNj16Ul1mpyARfmYpFWv9cWn7VXf72D4EUSnkBDzIoBoFhXGB45954dzle1M6g00fni1jV40"
+);
+
+
 // Cette approche utilise la syntaxe JSX pour définir les routes (alternative à l'objet JavaScript)
 const routeDefinitions = createRoutesFromElements(
-  // Route parent "/" : contient le layout (Header + Footer dans App.tsx)
-  // errorElement : composant affiché en cas d'erreur dans n'importe quelle route enfant
+  
   <Route path="/" element={<App />} errorElement={<ErrorPage />}>
-    
-    {/* index : route par défaut quand on est sur "/" (équivalent à path="/") */}
-    {/* loader : fonction appelée AVANT le rendu pour charger les données */}
+
     <Route index element={<Home />} loader={productsLoader} />
-    
-    {/* Route explicite /home (doublon avec index, utile pour la navigation) */}
     <Route path="/home" element={<Home />} loader={productsLoader} />
-    
-    {/* Routes simples sans loader ni action */}
     <Route path="/about" element={<About />} />
-    
-    {/* action : fonction appelée lors de la soumission d'un formulaire */}
-    {/* Utilisé pour traiter les données du formulaire de contact */}
     <Route path="/contact" element={<Contact />} action={contactAction} />
     
     <Route path="/login" element={<Login />} action={loginAction} />
     <Route path="/register" element={<Register />} action={registerAction} />
     <Route path="/cart" element={<Cart />} />
-    
-    
-    {/* Route dynamique avec paramètre :productId */}
-    {/* Exemple : /products/123 → productId = "123" */}
-    {/* Accessible via useParams() dans ProductDetail.tsx */}
     <Route path="/products/:productId" element={<ProductDetail />} 
-     loader={productDetailLoader}  
+    loader={productDetailLoader}  
     />
+
+    <Route
+        path="/profile"
+        element={<Profile />}
+        loader={profileLoader}
+        action={profileAction}
+        shouldRevalidate={({ actionResult }) => {
+          return !actionResult?.success;
+        }}
+      />
 
     <Route element={<ProtectedRoute />}>
       <Route path="/checkout" element={<CheckoutForm />} />
-      <Route path="/profile" element={<Profile />} />
+      <Route path="/order-success" element={<OrderSuccess />} />
       <Route path="/orders" element={<Orders />} />
       <Route path="/admin/orders" element={<AdminOrders />} />
       <Route path="/admin/messages" element={<Messages />} />
@@ -75,57 +82,42 @@ const routeDefinitions = createRoutesFromElements(
   </Route>
 );
 
-// 🚀 Création du routeur avec les définitions de routes
-// createBrowserRouter : utilise l'API History du navigateur (URLs propres sans #)
+
 const appRouter = createBrowserRouter(routeDefinitions);
 
-// 🎬 Point d'entrée de l'application React
-// createRoot : API React 18 pour le rendu de l'application
-// getElementById('root')! : le "!" indique à TypeScript que l'élément existe (non-null assertion)
 createRoot(document.getElementById('root')!).render(
 
-  // StrictMode : mode strict de React (détecte les problèmes potentiels en dev)
-  // - Rend les composants 2 fois pour détecter les effets de bord
-  // - Active des warnings supplémentaires
-  // - N'affecte PAS la production
   <StrictMode>
 
+    <Elements stripe={stripePromise}>
 
-   <AuthProvider>
-      <CartProvider>
-        <RouterProvider router={appRouter} />
-      </CartProvider>
-    </AuthProvider>
-    
-    {/* RouterProvider : fournit le contexte de routing à toute l'application */}
-    {/* Permet à tous les composants d'utiliser useNavigate, useParams, etc. */}
-    
-    {/* ToastContainer : conteneur pour les notifications toast (react-toastify) */}
-    {/* position : où apparaissent les toasts sur l'écran */}
-    <ToastContainer
-      position="top-center"
+    <AuthProvider>
+        <CartProvider>
+          <RouterProvider router={appRouter} />
+        </CartProvider>
+      </AuthProvider>
       
-      /* autoClose : fermeture automatique après 3 secondes */
-      autoClose={3000}
-      
-      /* hideProgressBar : affiche la barre de progression du timer */
-      hideProgressBar={false}
-      
-      /* newestOnTop : les nouveaux toasts apparaissent en haut de la pile */
-      newestOnTop={false}
-      
-      /* draggable : permet de glisser les toasts pour les fermer */
-      draggable
-      
-      /* pauseOnHover : pause le timer quand on survole le toast */
-      pauseOnHover
-      
-      /* theme : adapte le toast au thème dark/light de l'utilisateur */
-      /* Lit la préférence sauvegardée dans localStorage */
-      theme={localStorage.getItem("theme") === "dark" ? "dark" : "light"}
-      
-      /* transition : animation d'entrée/sortie des toasts */
-      transition={Bounce}
-    />
+      <ToastContainer
+        position="top-center"
+        
+        //autoClose : fermeture automatique après 3 secondes
+        autoClose={3000}
+        //affiche la barre de progression du timer
+        hideProgressBar={false}
+        //nouveaux toasts apparaissent en haut de la pile 
+        newestOnTop={false}
+        // draggable : permet de glisser les toasts pour les fermer
+        draggable
+        //pauseOnHover : pause le timer quand on survole le toast
+        pauseOnHover
+        
+        /* theme : adapte le toast au thème dark/light de l'utilisateur */
+        /* Lit la préférence sauvegardée dans localStorage */
+        theme={localStorage.getItem("theme") === "dark" ? "dark" : "light"}
+        
+        /* transition : animation d'entrée/sortie des toasts */
+        transition={Bounce}
+      />
+    </Elements>
   </StrictMode>
 )

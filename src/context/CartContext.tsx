@@ -1,12 +1,11 @@
-import {
-  createContext,
-  useEffect,
-  useReducer,
-  type ReactNode,
-} from "react";
+import { createContext, useEffect, useReducer } from "react";
+import type { ReactNode } from "react";
+import type { CartContextType, CartItem } from "../types/cart";
 import type { Product } from "../types/product";
-import type { CartItem, CartContextType } from "../types/cart";
-import { ADD_TO_CART, REMOVE_FROM_CART, CLEAR_CART, cartReducer } from "../types/cart";
+import { cartReducer } from "../store/cart/cartReducer";
+
+import { calculateTotalQuantity, calculateTotalPrice } from "../store/cart/cartSelectors";
+import { addToCartAction, clearCartAction, removeFromCartAction } from "../actions/cartActions";
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -36,27 +35,34 @@ export function CartProvider({ children }: CartProviderProps) {
   }, [cart]);
 
   const addToCart = (product: Product, quantity: number): void => {
-    dispatch({ type: ADD_TO_CART, payload: { product, quantity } });
+    dispatch(addToCartAction(product, quantity));
   };
 
   const removeFromCart = (productId: number): void => {
-    dispatch({ type: REMOVE_FROM_CART, payload: { productId } });
+    dispatch(removeFromCartAction(productId));
   };
 
   const clearCart = (): void => {
-    dispatch({ type: CLEAR_CART });
+    dispatch(clearCartAction());
   };
 
-  const totalQuantity = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const totalQuantity = calculateTotalQuantity(cart);
+  const totalPrice = calculateTotalPrice(cart); // CALCUL DE totalPrice
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, removeFromCart, clearCart, totalQuantity }}
+      value={{ 
+        cart, 
+        addToCart, 
+        removeFromCart, 
+        clearCart, 
+        totalQuantity,
+        totalPrice // INCLUS dans la valeur du context
+      }}
     >
       {children}
     </CartContext.Provider>
   );
 }
 
-// Exporte le Context pour le hook
 export { CartContext };

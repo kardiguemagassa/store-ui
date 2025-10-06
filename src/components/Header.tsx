@@ -7,10 +7,11 @@ import {
   faAngleDown,
 } from "@fortawesome/free-solid-svg-icons";
 import { useState, useEffect, useRef } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useCart } from "../hooks/useCart";
 import { useAuth } from "../hooks/useAuth";
 import { toast } from "react-toastify";
+import type { User } from "../types/auth"; 
 
 export default function Header() { 
   // ⚡ ÉTAT DU THÈME - Gestion du mode sombre/clair avec persistance dans le localStorage
@@ -19,13 +20,11 @@ export default function Header() {
   });
 
   // 🎯 VARIABLES D'ÉTAT - Gestion de l'ouverture/fermeture des menus déroulants
-  const isAdmin = true; // ⚠️ À remplacer par une logique d'authentification réelle
   const [isUserMenuOpen, setUserMenuOpen] = useState<boolean>(false);
   const [isAdminMenuOpen, setAdminMenuOpen] = useState<boolean>(false);
   
   // 🎯 HOOKS REACT ROUTER - Navigation et localisation
   const location = useLocation();
-  const navigate = useNavigate();
   
   // 🎯 RÉFÉRENCE - Pour détecter les clics en dehors du menu utilisateur
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -36,7 +35,8 @@ export default function Header() {
 
   // 🎯 HOOKS PERSONNALISÉS - Récupération des données globales
   const { totalQuantity } = useCart();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
+  const isAdmin = user?.roles?.includes("ROLE_ADMIN");
 
   // 🎯 EFFET - Gestion du thème et de la fermeture des menus au clic externe
   useEffect(() => {
@@ -79,9 +79,38 @@ export default function Header() {
   // 🎯 DÉCONNEXION - Gestion de la déconnexion utilisateur
   const handleLogout = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    logout(); // Appel de la fonction de déconnexation du hook useAuth
+    logout(); // Appel de la fonction de déconnexion du hook useAuth
     toast.success("Logged out successfully!");
-    navigate("/home"); // Redirection vers la page d'accueil
+    // La redirection est gérée dans le hook useAuth ou ailleurs
+  };
+
+  // 🎯 FONCTION POUR AFFICHER LE NOM DE L'UTILISATEUR
+  const getUserDisplayName = (user: User | null): string => {
+    if (!user) return "Hello User";
+    
+    // Utilisation sécurisée
+    if (user.name) {
+      return user.name.length > 8 
+        ? `Hello ${user.name.slice(0, 8)}...`
+        : `Hello ${user.name}`;
+    }
+    
+    // Fallback sur username si disponible
+    if (user.username) {
+      return user.username.length > 8 
+        ? `Hello ${user.username.slice(0, 8)}...`
+        : `Hello ${user.username}`;
+    }
+    
+    // Fallback sur email
+    if (user.email) {
+      const emailUsername = user.email.split('@')[0];
+      return emailUsername.length > 8 
+        ? `Hello ${emailUsername.slice(0, 8)}...`
+        : `Hello ${emailUsername}`;
+    }
+    
+    return "Hello User";
   };
 
   // 🎯 CLASSES CSS - Réutilisables pour la stylisation
@@ -155,7 +184,9 @@ export default function Header() {
                     onClick={toggleUserMenu}
                     className="relative text-primary"
                   >
-                    <span className={navLinkClass}>Hello John Doe</span>
+                    <span className={navLinkClass}>
+                      {getUserDisplayName(user)} {/* ✅ Utilisation sécurisée */}
+                    </span>
                     <FontAwesomeIcon
                       icon={faAngleDown}
                       className="text-primary dark:text-light w-6 h-6"
