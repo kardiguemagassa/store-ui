@@ -15,11 +15,21 @@
     "@fortawesome/free-regular-svg-icons": "^7.0.1",
     "@fortawesome/free-solid-svg-icons": "^7.0.1",
     "@fortawesome/react-fontawesome": "^3.0.2",
+    "@stripe/react-stripe-js": "^5.0.0",
+    "@stripe/stripe-js": "^8.0.0",
+    "@tailwindcss/vite": "^4.1.13",
+    "axios": "^1.12.2",
+    "js-cookie": "^3.0.5",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.3",
+    "react-toastify": "^11.0.5",
+    "styled-components": "^6.1.19",
+    "tailwindcss": "^4.1.13"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@types/js-cookie": "^3.0.6",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
