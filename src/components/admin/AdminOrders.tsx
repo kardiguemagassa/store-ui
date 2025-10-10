@@ -6,10 +6,25 @@ import { toast } from "react-toastify";
 import type { OrderResponse, OrderItemResponse } from "../../types/orders";
 
 export default function AdminOrders() {
+
+  /**
+   * permet d’accéder aux données chargées par le loader défini pour cette page (ou route).
+   * liste de commandes que le routeur précharge avant d’afficher la page.
+   */
   const loaderData = useLoaderData();
+
+  /**
+   * useRevalidator() est un hook React Router qui permet de rafraîchir 
+   * les données du loader sans recharger la page.
+   * ex : Quand tu confirmes ou annules une commande :
+   * 1 Met à jour la commande sur le backend.
+   * 2 Puis rafraîchit les données de la page (le loader est relancé).
+   * 3 Donc la page se met automatiquement à jour sans rechargement complet.
+   */
   const revalidator = useRevalidator();
 
-  // ✅ Typage sécurisé des commandes
+  // commandes
+  // s'assurer que loaderData contient bien un tableau d'objets valides de type OrderResponse
   const orders: OrderResponse[] = (() => {
     if (!loaderData || !Array.isArray(loaderData)) return [];
     return loaderData.filter((order): order is OrderResponse =>
@@ -17,23 +32,32 @@ export default function AdminOrders() {
     );
   })();
 
+  /**
+   * Formate la date reçue du backend (généralement en ISO, ex : 2025-10-10T15:22:00Z) pour l’afficher joliment
+   * @param isoDate 
+   * @returns 
+   */
   function formatDate(isoDate: string | undefined | null): string {
-    if (!isoDate) return "N/A";
+    if (!isoDate) return "N/A"; // Si la date est vide ou null
     try {
-      const date = new Date(isoDate);
-      return isNaN(date.getTime()) ? "Invalid Date" : date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
+      const date = new Date(isoDate); // On crée un objet Date à partir de la chaîne ISO
+      return isNaN(date.getTime())
+        ? "Date invalide" // Si la date n'est pas valide
+        : date.toLocaleDateString("fr-FR", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
     } catch {
-      return "Date Error";
+      return "Erreur de date"; // Si une erreur survient
     }
   }
 
   function formatPrice(price: number | undefined | null): string {
-    if (price == null || isNaN(price)) return "$0.00";
-    return `$${price.toFixed(2)}`;
+    if (price == null || isNaN(price)) return "€0.00";
+    return `${price.toFixed(2)} €`;
   }
 
   /**
@@ -42,11 +66,11 @@ export default function AdminOrders() {
   const handleConfirm = async (orderId: number): Promise<void> => {
     try {
       await apiClient.patch(`/admin/orders/${orderId}/confirm`);
-      toast.success("Order confirmed.");
-      revalidator.revalidate(); // 🔁 Re-run loader
+      toast.success("Commande confirmée.");
+      revalidator.revalidate();
     } catch (error) {
-      toast.error("Failed to confirm order.");
-      console.error("Confirm order error:", error);
+      toast.error("Échec de la confirmation de la commande." + error);
+      //console.error("Confirm order error:", error);
     }
   };
 
@@ -56,10 +80,10 @@ export default function AdminOrders() {
   const handleCancel = async (orderId: number): Promise<void> => {
     try {
       await apiClient.patch(`/admin/orders/${orderId}/cancel`);
-      toast.success("Order cancelled.");
-      revalidator.revalidate(); // 🔁 Re-run loader
+      toast.success("Commande annulée.");
+      revalidator.revalidate();
     } catch (error) {
-      toast.error("Failed to cancel order.");
+      toast.error("Impossible d'annuler la commande.");
       console.error("Cancel order error:", error);
     }
   };
@@ -68,30 +92,29 @@ export default function AdminOrders() {
     <div className="min-h-[852px] container mx-auto px-6 py-12 font-primary dark:bg-darkbg">
       {orders.length === 0 ? (
         <p className="text-center text-2xl text-primary dark:text-lighter">
-          No orders found.
+          Aucune commande trouvée.
         </p>
       ) : (
         <div className="space-y-6 mt-4">
-          <PageTitle title="Admin Orders Management" />
+          <PageTitle title="Gestion des commandes administratives" />
           {orders.map((order) => (
             <div
               key={order.orderId}
               className="bg-white dark:bg-gray-700 shadow-md rounded-md p-6"
             >
-              {/* Top Row: Order Info + Buttons */}
               <div className="flex flex-wrap items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-semibold text-primary dark:text-lighter">
-                    Order #{order.orderNumber || order.orderId}
+                    Commande #{order.orderNumber || order.orderId}
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Status:{" "}
+                    Statut:{" "}
                     <span className="font-medium text-gray-800 dark:text-lighter">
                       {order.status}
                     </span>
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Price:{" "}
+                    Prix total:{" "}
                     <span className="font-medium text-gray-800 dark:text-gray-200">
                       {formatPrice(order.totalPrice)}
                     </span>
@@ -110,13 +133,13 @@ export default function AdminOrders() {
                     onClick={() => handleConfirm(order.orderId)}
                     className="px-6 py-2 text-white dark:text-dark text-md rounded-md transition duration-200 bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter"
                   >
-                    Confirm
+                    Confirmer
                   </button>
                   <button
                     onClick={() => handleCancel(order.orderId)}
                     className="px-6 py-2 text-white text-md rounded-md transition duration-200 bg-red-500 hover:bg-red-600"
                   >
-                    Cancel
+                    Annuler
                   </button>
                 </div>
               </div>
@@ -141,10 +164,10 @@ export default function AdminOrders() {
                         {item.productName}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Quantity: {item.quantity}
+                        Quantité: {item.quantity}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Price: {formatPrice(item.price)}
+                        Prix: {formatPrice(item.price)}
                       </p>
                     </div>
                   </div>
