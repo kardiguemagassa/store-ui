@@ -1,7 +1,7 @@
 import apiClient from "../api/apiClient";
 import { CardNumberElement } from "@stripe/react-stripe-js";
 import { userToBillingDetails } from "../utils/stripeHelpers";
-import { handleError } from "../types/errors";
+import { handleApiError } from "../types/errors";
 import type { 
   ProcessPaymentParams, 
   ProcessPaymentResult,
@@ -11,6 +11,7 @@ import type { CartItem } from "../types/cart";
 import type { PaymentIntentResponse } from "../types/payment";
 import type { OrderRequest } from "../types/orders";
 import type { PaymentIntent } from "@stripe/stripe-js";
+import type { User, Address } from "../types/auth";
 
 export async function processPayment({ 
   stripe, 
@@ -20,15 +21,23 @@ export async function processPayment({
   totalPrice 
 }: ProcessPaymentParams): Promise<ProcessPaymentResult> {
   if (!stripe || !elements) {
-    return { success: false, error: "Stripe.js is not loaded yet." };
+    return { success: false, error: "Stripe n'est pas encore chargé." };
   }
 
   if (!user) {
-    return { success: false, error: "User information is missing." };
+    return { success: false, error: "Informations utilisateur manquantes." };
+  }
+
+  // 🎯 VÉRIFICATION CRITIQUE DE L'ADRESSE
+  if (!user.address) {
+    return { 
+      success: false, 
+      error: "Adresse de livraison requise. Veuillez compléter votre profil avant de procéder au paiement." 
+    };
   }
 
   if (cart.length === 0) {
-    return { success: false, error: "Cart is empty." };
+    return { success: false, error: "Le panier est vide." };
   }
 
   try {
@@ -43,17 +52,17 @@ export async function processPayment({
     const { clientSecret } = response.data;
 
     if (!clientSecret) {
-      return { success: false, error: "No client secret received from server." };
+      return { success: false, error: "Clé secrète manquante du serveur." };
     }
 
     const cardNumberElement = elements.getElement(CardNumberElement);
     if (!cardNumberElement) {
-      return { success: false, error: "Card number element not found." };
+      return { success: false, error: "Élément carte bancaire introuvable." };
     }
 
-    // SIMPLE ET PROPRE
-    const billingDetails = userToBillingDetails(user);
-    
+    // 🎯 CAST SÉCURISÉ - TypeScript
+    const userWithAddress = user as User & { address: Address };
+    const billingDetails = userToBillingDetails(userWithAddress);
 
     const { error, paymentIntent } = await stripe.confirmCardPayment(
       clientSecret,
@@ -69,7 +78,7 @@ export async function processPayment({
     if (error) {
       return { 
         success: false, 
-        error: error.message || "Payment failed. Please try again." 
+        error: error.message || "Échec du paiement. Veuillez réessayer." 
       };
     }
 
@@ -77,13 +86,16 @@ export async function processPayment({
       return { success: true, paymentIntent };
     }
 
-    return { success: false, error: "Payment was not successful." };
+    return { success: false, error: "Le paiement n'a pas abouti." };
   } catch (error: unknown) {
-    console.error("Error processing payment:", error);
-    const errorMessage = handleError(error);
+    console.error("Erreur lors du traitement du paiement:", error);
+    
+    const errorInfo = handleApiError(error);
+    
     return { 
       success: false, 
-      error: `Payment processing failed: ${errorMessage}`
+      error: errorInfo.message,
+      validationErrors: errorInfo.errors
     };
   }
 }
@@ -108,11 +120,14 @@ export async function createOrder(
     const response = await apiClient.post<{ orderId: number }>("/orders", orderData);
     return { success: true, orderId: response.data.orderId };
   } catch (error: unknown) {
-    console.error("Failed to create order:", error);
-    const errorMessage = handleError(error);
+    console.error("Échec de la création de commande:", error);
+    
+    const errorInfo = handleApiError(error);
+    
     return { 
       success: false, 
-      error: `Order creation failed: ${errorMessage}`
+      error: errorInfo.message,
+      validationErrors: errorInfo.errors
     };
   }
 }

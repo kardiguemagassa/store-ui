@@ -22,10 +22,10 @@ export default function Messages() {
   const handleCloseMessage = async (contactId: number): Promise<void> => {
     try {
       await apiClient.patch(`/admin/messages/${contactId}/close`);
-      toast.success("Message closed");
-      revalidator.revalidate(); // 🔁 Re-run loader
+      toast.success("Message fermé");
+      revalidator.revalidate();
     } catch (error) {
-      toast.error("Failed to close message");
+      toast.error("Échec de la fermeture du message");
       console.error("Close message error:", error);
     }
   };
@@ -34,7 +34,7 @@ export default function Messages() {
     <div className="min-h-[852px] container mx-auto px-6 py-12 font-primary dark:bg-darkbg">
       {messages.length === 0 ? (
         <p className="text-center text-2xl text-primary dark:text-lighter">
-          No open messages found.
+          Aucun message ouvert trouvé.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -43,13 +43,13 @@ export default function Messages() {
             <thead>
               <tr className="bg-primary dark:bg-light text-lighter dark:text-primary">
                 <th className="w-1/6 border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">
-                  Name
+                  Nom
                 </th>
                 <th className="w-1/6 border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">
                   Email
                 </th>
                 <th className="w-1/6 border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">
-                  Mobile #
+                  Mobile 
                 </th>
                 <th className="w-2/5 border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">
                   Message
@@ -82,7 +82,7 @@ export default function Messages() {
                       onClick={() => handleCloseMessage(message.contactId)}
                       className="bg-red-500 text-white px-4 py-1 rounded-md hover:bg-red-600 transition"
                     >
-                      Close
+                      Fermer
                     </button>
                   </td>
                 </tr>
