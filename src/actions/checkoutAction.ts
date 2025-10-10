@@ -11,6 +11,7 @@ import type { CartItem } from "../types/cart";
 import type { PaymentIntentResponse } from "../types/payment";
 import type { OrderRequest } from "../types/orders";
 import type { PaymentIntent } from "@stripe/stripe-js";
+import type { User, Address } from "../types/auth";
 
 export async function processPayment({ 
   stripe, 
@@ -25,6 +26,14 @@ export async function processPayment({
 
   if (!user) {
     return { success: false, error: "Informations utilisateur manquantes." };
+  }
+
+  // 🎯 VÉRIFICATION CRITIQUE DE L'ADRESSE
+  if (!user.address) {
+    return { 
+      success: false, 
+      error: "Adresse de livraison requise. Veuillez compléter votre profil avant de procéder au paiement." 
+    };
   }
 
   if (cart.length === 0) {
@@ -51,7 +60,9 @@ export async function processPayment({
       return { success: false, error: "Élément carte bancaire introuvable." };
     }
 
-    const billingDetails = userToBillingDetails(user);
+    // 🎯 CAST SÉCURISÉ - TypeScript
+    const userWithAddress = user as User & { address: Address };
+    const billingDetails = userToBillingDetails(userWithAddress);
 
     const { error, paymentIntent } = await stripe.confirmCardPayment(
       clientSecret,
@@ -79,7 +90,6 @@ export async function processPayment({
   } catch (error: unknown) {
     console.error("Erreur lors du traitement du paiement:", error);
     
-    //SYSTÈME D'ERREURS CENTRALISÉ
     const errorInfo = handleApiError(error);
     
     return { 
@@ -112,7 +122,6 @@ export async function createOrder(
   } catch (error: unknown) {
     console.error("Échec de la création de commande:", error);
     
-    // SYSTÈME D'ERREURS CENTRALISÉ
     const errorInfo = handleApiError(error);
     
     return { 
