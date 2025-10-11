@@ -10,15 +10,19 @@ import { useNavigate } from "react-router-dom";
 import PageTitle from "./PageTitle";
 import { toast } from "react-toastify";
 import { useAuth } from "../hooks/useAuth";
-import { useCart } from "../hooks/useCart";
+import { useAppDispatch, useAppSelector } from "../hooks/redux"; 
+import { clearCart, selectCartItems, selectTotalPrice } from "../store/cartSlice";
 import { processPayment, createOrder } from "../actions/checkoutAction";
 import type { ElementErrors } from "../types/payment";
 import type { StripeElementChangeEvent } from "../types/payment";
 
 export default function CheckoutForm() {
-  // HOOKS - Récupération des données globales
+
+  // HOOKS - Récupération des données globales AVEC REDUX
   const { user } = useAuth();
-  const { cart, totalPrice, clearCart } = useCart();
+  const dispatch = useAppDispatch();
+  const cart = useAppSelector(selectCartItems); 
+  const totalPrice = useAppSelector(selectTotalPrice); 
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -73,17 +77,17 @@ export default function CheckoutForm() {
 
     // VALIDATIONS INITIALES - Vérifications de sécurité
     if (!stripe || !elements) {
-      setErrorMessage("Stripe.js is not loaded yet.");
+      setErrorMessage("Stripe.js n'est pas encore chargé.");
       return;
     }
 
     if (Object.values(elementErrors).some((error) => error)) {
-      setErrorMessage("Please correct the highlighted errors.");
+      setErrorMessage("Veuillez corriger les erreurs surlignées.");
       return;
     }
 
     if (!user) {
-      setErrorMessage("User information is missing.");
+      setErrorMessage("Les informations utilisateur sont manquantes.");
       return;
     }
 
@@ -93,14 +97,13 @@ export default function CheckoutForm() {
 
     try {
       // ÉTAPE 1: PROCESSUS DE PAIEMENT
-      // Utilisation de la fonction externalisée pour plus de clarté
       const paymentResult = await processPayment({
         stripe,
         elements,
         user,
         cart,
         totalPrice,
-        elementErrors // Important: passer les erreurs d'éléments pour validation
+        elementErrors // passer les erreurs d'éléments pour validation
       });
 
       if (!paymentResult.success || !paymentResult.paymentIntent) {
@@ -109,10 +112,9 @@ export default function CheckoutForm() {
       }
 
       // PAIEMENT RÉUSSI - Notification utilisateur
-      toast.success("Payment successful!");
+      toast.success("Paiement a été effectué!");
 
       // ÉTAPE 2: CRÉATION DE LA COMMANDE
-      // Externalisation de la logique métier
       const orderResult = await createOrder(
         totalPrice, 
         paymentResult.paymentIntent, 
@@ -120,17 +122,17 @@ export default function CheckoutForm() {
       );
 
       if (!orderResult.success) {
-        setErrorMessage(orderResult.error || "Order creation failed.");
+        setErrorMessage(orderResult.error || "La commande a échoué.");
         return;
       }
 
-      // SUCCÈS COMPLET - Nettoyage et redirection
+      // SUCCÈS Nettoyage et redirection
       sessionStorage.setItem("skipRedirectPath", "true"); // Évite la redirection vers login
-      clearCart(); // Vidage du panier
+      dispatch(clearCart()); // VIDAGE DU PANIER AVEC REDUX
       navigate("/order-success"); // Redirection vers la page de succès
 
     } catch (error: unknown) {
-      // GESTION D'ERREUR GLOBALE - Fallback sécurisé
+     
       console.error("Checkout process error:", error);
       setErrorMessage("An unexpected error occurred. Please try again.");
     } finally {
@@ -139,23 +141,22 @@ export default function CheckoutForm() {
     }
   };
 
-  // RENDU DU COMPOSANT - Interface utilisateur
   return (
     <div className="min-h-[852px] flex items-center justify-center font-primary dark:bg-darkbg">
       {/* INDICATEUR DE CHARGEMENT - Pendant le traitement */}
       <div className={isProcessing ? "visible flex flex-col justify-center items-center my-[200px]" : "hidden"}>
         <p className="mt-4 text-2xl font-normal text-primary dark:text-light">
-          Processing Payment.... Don't refresh the page
+          Traitement du paiement.... Ne pas actualiser la page
         </p>
       </div>
 
       {/* FORMULAIRE DE PAIEMENT - Masqué pendant le traitement */}
       <div className={isProcessing ? "hidden" : "visible bg-white dark:bg-gray-700 shadow-md rounded-lg max-w-md w-full px-8 py-6"}>
-        <PageTitle title="Complete Your Payment" />
+        <PageTitle title="Terminez votre paiement" />
 
         {/* MONTANT TOTAL - Information claire pour l'utilisateur */}
         <p className="text-center mt-8 text-lg text-gray-600 dark:text-lighter mb-8">
-          Amount to be charged: <strong>${totalPrice.toFixed(2)}</strong>
+          Montant à facturer : <strong>{totalPrice.toFixed(2)} €</strong>
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -169,7 +170,7 @@ export default function CheckoutForm() {
           {/* NUMÉRO DE CARTE - Élément Stripe sécurisé */}
           <div>
             <label htmlFor="cardNumber" className={labelStyle}>
-              Card Number
+              Numéro de carte
             </label>
             <div id="cardNumber" className={getClassForElement("cardNumber")}>
               <CardNumberElement
@@ -187,7 +188,7 @@ export default function CheckoutForm() {
           {/* DATE D'EXPIRATION - Validation automatique */}
           <div>
             <label htmlFor="cardExpiry" className={labelStyle}>
-              Expiry Date
+              Date d'expiration
             </label>
             <div id="cardExpiry" className={getClassForElement("cardExpiry")}>
               <CardExpiryElement
@@ -227,7 +228,7 @@ export default function CheckoutForm() {
               disabled={!stripe || isProcessing}
               className="w-full px-6 py-2 mt-6 text-white dark:text-black text-xl bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter rounded-md transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isProcessing ? "Payment processing..." : "Pay Now"}
+              {isProcessing ? "Traitement des paiements..." : "Payer maintenant"}
             </button>
           </div>
         </form>

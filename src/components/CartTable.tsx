@@ -1,23 +1,33 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTimes } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
-import { useCart } from "../hooks/useCart";
-
+import { useAppDispatch, useAppSelector } from "../hooks/redux";
+import { 
+  removeFromCart, 
+  updateQuantity, 
+  selectCartItems,
+  selectTotalPrice 
+} from "../store/cartSlice"; 
 
 export default function CartTable() {
-  const { cart, addToCart, removeFromCart } = useCart();
-
-  const subtotal = cart
-    .reduce((acc, item) => acc + item.price * item.quantity, 0)
-    .toFixed(2);
+  
+  const dispatch = useAppDispatch(); 
+  const cart = useAppSelector(selectCartItems); 
+  const subtotal = useAppSelector(selectTotalPrice); // Calcul du total via sélecteur
 
   // Typage explicite des paramètres
   const updateCartQuantity = (productId: number, quantity: number): void => {
-    const product = cart.find((item) => item.productId === productId);
-    if (product) {
-      const quantityDiff = quantity - product.quantity;
-      addToCart(product, quantityDiff);
+    if (quantity > 0) {
+      // Utilisation de l'action updateQuantity
+      dispatch(updateQuantity({ productId, quantity }));
+    } else {
+      // Si quantité = 0, supprimer l'article
+      dispatch(removeFromCart({ productId }));
     }
+  };
+
+  const handleRemoveFromCart = (productId: number): void => {
+    dispatch(removeFromCart({ productId })); // Dispatch de l'action
   };
 
   return (
@@ -71,7 +81,7 @@ export default function CartTable() {
               <td className="px-4 sm:px-6 py-4">
                 <button
                   aria-label="delete-item"
-                  onClick={() => removeFromCart(item.productId)}
+                  onClick={() => handleRemoveFromCart(item.productId)} // Nouvelle fonction
                   className="text-primary dark:text-red-400 border border-primary dark:border-red-400 p-2 rounded hover:bg-lighter dark:hover:bg-gray-700"
                 >
                   <FontAwesomeIcon icon={faTimes} />
@@ -86,7 +96,7 @@ export default function CartTable() {
                 Total
               </td>
               <td className="text-lg text-primary dark:text-blue-400 font-medium px-4 sm:px-6 py-4">
-                ${subtotal}
+                ${subtotal.toFixed(2)} {/* Utilisation du subtotal du sélecteur */}
               </td>
               <td></td>
             </tr>

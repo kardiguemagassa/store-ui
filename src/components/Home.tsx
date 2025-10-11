@@ -3,7 +3,6 @@ import PageHeading from "./PageHeading";
 import ProductListings from "./ProductListings";
 import { useLoaderData } from "react-router-dom";
 
-// Hooks
 export default function Home() {
   const products = useLoaderData() as Product[];
 

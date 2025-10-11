@@ -1,8 +1,7 @@
 import PageTitle from "./PageTitle";
 
-// Page About : présentation de l'entreprise et ses valeurs
 export default function About() {
-  // Styles réutilisables pour uniformité visuelle
+  
   const h3Style = "text-lg font-semibold text-primary dark:text-light mb-2";
   const pStyle = "text-gray-600 dark:text-lighter";
 
@@ -10,9 +9,7 @@ export default function About() {
     <div className="max-w-[1152px] min-h-[852px] mx-auto px-6 py-8 font-primary">
       <PageTitle title="À propos de nous" />
       
-      {/* Introduction de l'entreprise */}
       <p className="leading-6 mb-8 text-gray-600 dark:text-lighter">
-        {/* Mise en évidence des noms de marque avec style différent */}
         <span className="text-lg font-semibold text-primary dark:text-light">
           autocollant facile
         </span>{" "}
@@ -23,16 +20,11 @@ export default function About() {
         , dédié à vous offrir les stickers et posters les plus recherchés !
       </p>
 
-      {/* Titre de section */}
       <h2 className="text-2xl leading-[32px] font-bold text-primary dark:text-light mb-6">
         Pourquoi nous choisir?
       </h2>
 
-      {/* Liste des caractéristiques */}
-      {/* space-y-8 : espacement vertical uniforme entre chaque feature */}
       <div className="space-y-8">
-        
-        {/* Feature 1 : Qualité premium */}
         <div>
           <h3 className={h3Style}>Qualité supérieure</h3>
           <p className={pStyle}>
@@ -40,8 +32,6 @@ export default function About() {
             en livrant des autocollants en vinyle de haute qualité fabriqués avec soin et précision.
           </p>
         </div>
-
-        {/* Feature 2 : Innovation produit */}
         <div>
           <h3 className={h3Style}>Innovation produit</h3>
           <p className={pStyle}>
@@ -52,8 +42,6 @@ export default function About() {
             la surface de vos précieux appareils.
           </p>
         </div>
-
-        {/* Feature 3 : Service client */}
         <div>
           <h3 className={h3Style}>Excellent service</h3>
           <p className={pStyle}>
@@ -61,8 +49,6 @@ export default function About() {
             nous engageons à offrir une expérience d'achat exceptionnelle.
           </p>
         </div>
-
-        {/* Feature 4 : Variété de designs */}
         <div>
           <h3 className={h3Style}>Des designs que vous allez adorer</h3>
           <p className={pStyle}>

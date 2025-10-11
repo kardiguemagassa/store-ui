@@ -19,11 +19,11 @@ export default function ProductListings({ products }: ProductListingsProps) {
       return [];
     }
 
-    // 🔍 ÉTAPE 1 : Filtrage avec gestion de description optionnelle
+    // ÉTAPE 1 : Filtrage avec gestion de description optionnelle
     const filteredProducts = products.filter((product) => {
       const nameMatch = product.name.toLowerCase().includes(searchText.toLowerCase());
       
-      // ✅ CORRECTION : Vérifie si description existe avant de l'utiliser
+      // CORRECTION : Vérifie si description existe avant de l'utiliser
       const descriptionMatch = product.description 
         ? product.description.toLowerCase().includes(searchText.toLowerCase())
         : false;
@@ -31,7 +31,7 @@ export default function ProductListings({ products }: ProductListingsProps) {
       return nameMatch || descriptionMatch;
     });
 
-    // 🔀 ÉTAPE 2 : Tri avec gestion de popularité manquante
+    // ÉTAPE 2 : Tri avec gestion de popularité manquante
     return filteredProducts.slice().sort((a, b) => {
       switch (selectedSort) {
         case "Prix du plus bas au plus élevé":
@@ -42,7 +42,6 @@ export default function ProductListings({ products }: ProductListingsProps) {
           
         case "Popularité":
         default:
-          // ✅ CORRECTION : Utilisez un critère de tri alternatif
           // Option 1: Trier par nom (ordre alphabétique)
           return a.name.localeCompare(b.name);
           
@@ -87,7 +86,7 @@ export default function ProductListings({ products }: ProductListingsProps) {
           ))
         ) : (
           <p className="text-center font-primary font-bold text-lg text-primary dark:text-light">
-            No products found
+            Aucun produit trouvé
           </p>
         )}
       </div>
