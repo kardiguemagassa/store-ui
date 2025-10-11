@@ -28,15 +28,12 @@ export interface ContactValidationErrors {
   message?: string;
 }
 
-
  //Données retournées par l'action au composant React
- 
 export interface ContactActionData {
     success?: boolean;
     error?: string;
     validationErrors?: ContactValidationErrors;
 }
-
 
 //Réponse d'erreur du backend Spring Boot
 export interface BackendErrorResponse {
