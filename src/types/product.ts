@@ -1,4 +1,3 @@
-// PRODUIT - Interface de base pour les produits
 export interface Product {
   productId: number;
   name: string;
@@ -21,7 +20,7 @@ export interface Product {
   popularity?: number;
 }
 
-// FILTRES DE PRODUITS - Pour la recherche et filtrage
+//Pour la recherche et filtrage
 export interface ProductFilters {
   category?: string;
   minPrice?: number;

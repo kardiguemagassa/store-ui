@@ -1,4 +1,3 @@
-// Types pour les commandes
 export interface OrderItem {
   productId: number;
   quantity: number;
@@ -32,7 +31,8 @@ export interface OrderItemResponse {
   orderItemId: number;
   productId: number;
   productName: string;
-  productImageUrl: string;
+  productImageUrl?: string;
+  imageUrl?: string;
   quantity: number;
   price: number;
   subtotal: number;
@@ -82,10 +82,8 @@ export interface OrderStats {
   pendingOrders: number;
   deliveredOrders: number;
 }
-
-
-// à revoir 
-// ✅ Interface pour ce que le backend retourne RÉELLEMENT
+ 
+// Interface pour ce que le backend retourne RÉELLEMENT
 export interface BackendOrderResponse {
   orderId: number;
   status: string;
@@ -102,7 +100,17 @@ export interface BackendOrderResponse {
   }>;
 }
 
-// ✅ Votre interface frontend existante (pour l'affichage)
+export interface BackendOrderItem {
+  productId?: number;
+  productName?: string;
+  productImageUrl?: string;
+  imageUrl?: string;
+  quantity?: number;
+  price?: number;
+  subtotal?: number;
+}
+
+//frontend existante pour l'affichage
 export interface OrderResponse {
   orderId: number;
   orderNumber: string;
@@ -116,5 +124,3 @@ export interface OrderResponse {
   customer: OrderCustomer;
   shippingAddress: ShippingAddress;
 }
-
-// ... autres interfaces inchangées
