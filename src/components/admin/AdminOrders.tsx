@@ -152,7 +152,7 @@ export default function AdminOrders() {
                     className="flex items-center border-b pb-4 last:border-b-0"
                   >
                     <img
-                      src={item.productImageUrl || item.productImageUrl || "https://via.placeholder.com/64?text=No+Image"}
+                      src={item.imageUrl || item.imageUrl || "https://via.placeholder.com/64?text=No+Image"}
                       alt={item.productName}
                       className="w-16 h-16 object-cover rounded-md mr-4"
                       onError={(e) => {
