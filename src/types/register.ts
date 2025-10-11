@@ -1,4 +1,3 @@
-// 🎯 INTERFACES - Définition des types pour les données du formulaire et les réponses
 export interface RegisterFormData {
   name: string;
   email: string;
@@ -22,17 +21,4 @@ export interface ActionData {
 export interface RegisterActionResponse {
   success: boolean;
   errors?: ActionDataErrors;
-}
-
-// ✅ INTERFACE AMÉLIORÉE pour les erreurs API
-export interface ApiError {
-  response?: {
-    status: number;
-    data?: {
-      errorMessage?: string;
-      [key: string]: unknown;
-    };
-  };
-  message?: string;
-  status?: number;
 }

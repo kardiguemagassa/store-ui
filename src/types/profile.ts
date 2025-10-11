@@ -10,9 +10,29 @@ export interface ProfileData {
   name: string;
   email: string;
   mobileNumber: string;
-  address: Address; // ✅ Maintenant address est un objet
+  address: Address;
 }
 
+export interface ProfileResponse {
+  userId?: number;
+  name: string;
+  email: string;
+  mobileNumber: string;
+  roles?: string;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+}
+
+
+
+
+// à supprimer toutes les erreurs
+/*
 export interface ActionDataErrors {
   name?: string;
   email?: string;
@@ -40,4 +60,4 @@ export interface ApiError {
   };
   message?: string;
   status?: number;
-}
+}*/

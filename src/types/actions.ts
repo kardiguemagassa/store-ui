@@ -1,8 +1,9 @@
 import type { PaymentIntent, Stripe, StripeElements } from "@stripe/stripe-js";
 import type { User } from "./auth";
 import type { CartItem, ElementErrors } from "./payment";
+import type { ActionDataErrors } from "./errors";
 
-// Paramètres pour les actions de checkout
+
 export interface ProcessPaymentParams {
   stripe: Stripe | null;
   elements: StripeElements | null; 
@@ -16,6 +17,7 @@ export interface ProcessPaymentResult {
   success: boolean;
   paymentIntent?: PaymentIntent;
   error?: string;
+  validationErrors?: ActionDataErrors;
 }
 
 export interface CreateOrderParams {
@@ -28,4 +30,5 @@ export interface CreateOrderResult {
   success: boolean;
   orderId?: number;
   error?: string;
+  validationErrors?: ActionDataErrors;
 }

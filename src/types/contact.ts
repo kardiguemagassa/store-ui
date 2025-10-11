@@ -1,6 +1,4 @@
-/**
- * Interface : représente un contact dans la base de données
- */
+//représente un contact dans la base de données
 export interface Contacts {
     id?: number;
     name: string;
@@ -8,10 +6,19 @@ export interface Contacts {
     mobileNumber: string;
     message: string;
     createdAt?: string;
+    phone?: string;
+    address?: string;
+}
+
+//Informations de contact de l'entreprise
+export interface ContactInfo {
+    phone: string;
+    email: string;
+    address: string;
 }
 
 /**
- * Interface : erreurs de validation retournées par le backend Spring Boot
+ * Validation retournées par le backend Spring Boot
  * Correspond à la structure des erreurs de @Valid dans Spring
  */
 export interface ContactValidationErrors {
@@ -21,18 +28,17 @@ export interface ContactValidationErrors {
   message?: string;
 }
 
-/**
- * Interface : données retournées par l'action au composant React
- */
+
+ //Données retournées par l'action au composant React
+ 
 export interface ContactActionData {
     success?: boolean;
     error?: string;
     validationErrors?: ContactValidationErrors;
 }
 
-/**
- * Interface : structure complète de la réponse d'erreur du backend Spring Boot
- */
+
+//Réponse d'erreur du backend Spring Boot
 export interface BackendErrorResponse {
   timestamp?: string;
   status?: number;
