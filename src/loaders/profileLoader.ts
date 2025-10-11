@@ -1,27 +1,18 @@
 import apiClient from "../api/apiClient";
-import type { ApiError } from "../types/register";
+import { getErrorMessage, type ApiError } from "../types/errors";
+import type { ProfileResponse } from "../types/profile";
 
-interface ProfileResponse {
-  userId?: number;
-  name: string;
-  email: string;
-  mobileNumber: string;
-  roles?: string;
-  address?: {
-    street: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-  };
-}
 
 export async function profileLoader() {
   try {
     const response = await apiClient.get<ProfileResponse>("/profile");
     const profileData = response.data;
     
-    // ✅ Assurez-vous que l'adresse existe
+    if (!profileData) {
+      throw new Error("Aucune donnée de profil reçue");
+    }
+    
+    // Assurez-vous que l'adresse existe
     if (!profileData.address) {
       profileData.address = {
         street: "",
@@ -34,12 +25,12 @@ export async function profileLoader() {
     
     return profileData;
   } catch (error: unknown) {
+    // 🎯 CODE DÉJÀ PARFAIT
+    const errorMessage = getErrorMessage(error);
     const apiError = error as ApiError;
-    throw new Response(
-      apiError.response?.data?.errorMessage ||
-        apiError.message ||
-        "Failed to fetch profile details. Please try again.",
-      { status: apiError.response?.status || apiError.status || 500 }
-    );
+    
+    throw new Response(errorMessage, { 
+      status: apiError.response?.status || apiError.status || 500 
+    });
   }
 }

@@ -1,26 +1,25 @@
 import apiClient from "../api/apiClient";
-import type { OrderResponse, BackendOrderResponse } from "../types/orders";
+import type { OrderResponse, BackendOrderResponse, BackendOrderItem } from "../types/orders";
+import { handleError, type ApiError } from "../types/errors";
 
 export async function ordersLoader() {
   try {
     console.log("🔄 [LOADER] Fetching orders...");
     
-    // ✅ Utilisez l'interface backend
     const response = await apiClient.get<BackendOrderResponse[]>("/orders");
     
     console.log("✅ [LOADER] Raw orders data:", response.data);
 
-    // ✅ Transformation backend → frontend
-    const orders: OrderResponse[] = response.data.map((order, orderIndex) => ({
+    const orders: OrderResponse[] = response.data.map((order: BackendOrderResponse, orderIndex: number) => ({
       orderId: order.orderId,
       orderNumber: `ORD-${order.orderId}`,
       totalPrice: order.totalPrice,
       status: order.status,
-      paymentStatus: "PENDING", // Valeur par défaut
-      paymentId: "", // Valeur par défaut
+      paymentStatus: "",
+      paymentId: "",
       createdAt: order.createdAt,
-      updatedAt: order.createdAt, // Utilise createdAt comme fallback
-      items: order.items.map((item, itemIndex) => ({
+      updatedAt: order.createdAt,
+      items: order.items.map((item: BackendOrderItem, itemIndex: number) => ({ // 🎯 TYPE CORRIGÉ
         orderItemId: Date.now() + orderIndex * 1000 + itemIndex,
         productId: item.productId || 0,
         productName: item.productName || "Unknown Product",
@@ -29,13 +28,13 @@ export async function ordersLoader() {
         price: item.price || 0,
         subtotal: item.subtotal || (item.price || 0) * (item.quantity || 0)
       })),
-      customer: { // Valeurs par défaut
+      customer: {
         customerId: 0,
         name: "Customer",
         email: "customer@example.com",
         mobileNumber: ""
       },
-      shippingAddress: { // Valeurs par défaut
+      shippingAddress: {
         street: "",
         city: "",
         state: "",
@@ -49,6 +48,10 @@ export async function ordersLoader() {
     
   } catch (error: unknown) {
     console.error("❌ [LOADER] Failed to fetch orders:", error);
-    return [];
+    
+    const errorMessage = handleError(error);
+    const status = (error as ApiError)?.response?.status || 500;
+    
+    throw new Response(errorMessage, { status });
   }
 }

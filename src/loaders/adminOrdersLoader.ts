@@ -1,6 +1,13 @@
 import apiClient from "../api/apiClient";
 import type { OrderResponse } from "../types/orders";
-import { handleError } from "../types/errors";
+import { handleError, type ApiError } from "../types/errors";
+
+
+export const handleLoaderError = (error: unknown): Response => {
+  const errorMessage = handleError(error);
+  const status = (error as ApiError)?.response?.status || 500;
+  return new Response(errorMessage, { status });
+};
 
 export async function adminOrdersLoader() {
   try {
@@ -8,16 +15,6 @@ export async function adminOrdersLoader() {
     return response.data;
   } catch (error: unknown) {
     console.error("Admin orders loader error:", error);
-    
-    const errorMessage = handleError(error);
-    
-    // ✅ Récupération du statut HTTP sans any
-    let status = 500;
-    if (error && typeof error === 'object' && 'response' in error) {
-      const axiosError = error as { response?: { status?: number } };
-      status = axiosError.response?.status || 500;
-    }
-    
-    throw new Response(errorMessage, { status });
+    throw handleLoaderError(error);
   }
 }
