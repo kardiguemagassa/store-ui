@@ -1,33 +1,24 @@
-import { isAxiosError } from "axios";
 import apiClient from "../api/apiClient";
 import type { Contacts } from "../types/contact";
+import { handleError, type ApiError } from "../types/errors";
 
-/**
- * Loader : charge la liste des contacts (optionnel)
- * Utilisé si vous voulez afficher les contacts existants
- */
 export async function contactsLoader(): Promise<Contacts[]> {
   try {
     const response = await apiClient.get<Contacts[]>("/contacts");
     console.log("📥 Contacts chargés:", response.data);
     return response.data;
   } catch (error: unknown) {
-    console.error("❌ Erreur lors du chargement:", error);
+    console.error(" Erreur lors du chargement:", error);
     
-    // Vérifier si c'est une erreur Axios
-    if (isAxiosError(error)) {
-      // Si aucun contact (404), retourner tableau vide
-      if (error.response?.status === 404) {
-        return [];
-      }
-      
-      // Autre erreur : lancer une Response
-      throw new Response("Impossible de charger les contacts", { 
-        status: error.response?.status || 500 
-      });
+    
+    if ((error as ApiError)?.response?.status === 404) {
+      return [];
     }
     
-    // Erreur non-Axios
-    throw new Response("Erreur de connexion", { status: 500 });
+    // TOUTES LES AUTRES ERREURS : système centralisé
+    const errorMessage = handleError(error);
+    const status = (error as ApiError)?.response?.status || 500;
+    
+    throw new Response(errorMessage, { status });
   }
 }
