@@ -18,11 +18,7 @@ import { Bounce, ToastContainer } from 'react-toastify';
 import Cart from './components/Cart.tsx';
 import { productsLoader } from './loaders/productsLoader.ts';
 import ProductDetail from './components/ProductDetail.tsx';
-//import { productDetailLoader } from './loaders/productDetailLoader.ts';
-//import { CartProvider } from './store/cart-context.tsx';
-import { CartProvider } from './context/CartContext.tsx';
 import { loginAction } from './actions/loginAction.ts';
-import { AuthProvider } from './context/AuthProvider.tsx';
 import CheckoutForm from './components/CheckoutForm.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
 import Orders from './components/Orders.tsx';
@@ -40,7 +36,9 @@ import { productDetailLoader } from './loaders/productDetailLoader.ts';
 import { ordersLoader } from './loaders/ordersLoader.ts';
 import { adminOrdersLoader } from './loaders/adminOrdersLoader.ts';
 import { messagesLoader } from './loaders/messagesLoader.ts';
-//import OrderSuccess from "./components/OrderSuccess.jsx";
+import { contactsLoader } from './loaders/contactsLoader.ts';
+import { Provider } from 'react-redux';
+import { store } from './store/index.ts';
 
 
 const stripePromise = loadStripe(
@@ -56,7 +54,7 @@ const routeDefinitions = createRoutesFromElements(
     <Route index element={<Home />} loader={productsLoader} />
     <Route path="/home" element={<Home />} loader={productsLoader} />
     <Route path="/about" element={<About />} />
-    <Route path="/contact" element={<Contact />} action={contactAction} />
+    <Route path="/contact" element={<Contact />} action={contactAction} loader={contactsLoader} />
     
     <Route path="/login" element={<Login />} action={loginAction} />
     <Route path="/register" element={<Register />} action={registerAction} />
@@ -94,12 +92,10 @@ createRoot(document.getElementById('root')!).render(
 
     <Elements stripe={stripePromise}>
 
-    <AuthProvider>
-        <CartProvider>
-          <RouterProvider router={appRouter} />
-        </CartProvider>
-      </AuthProvider>
-      
+      <Provider store={store}>
+        <RouterProvider router={appRouter} />
+      </Provider>
+
       <ToastContainer
         position="top-center"
         
