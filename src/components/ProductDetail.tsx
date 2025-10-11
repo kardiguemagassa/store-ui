@@ -7,65 +7,83 @@ import {
   faShoppingBasket,
 } from "@fortawesome/free-solid-svg-icons";
 import type { Product } from "../types/product";
-import { useCart } from "../hooks/useCart";
+import { useAppDispatch } from "../hooks/redux"; 
+import { addToCart } from "../store/cartSlice"; 
 
 export default function ProductDetail(): JSX.Element {
-  //  Utilise useLoaderData au lieu de location.state
-  const product = useLoaderData() as Product;
-  const navigate = useNavigate();
-  const { addToCart } = useCart();
   
-  const [quantity, setQuantity] = useState<number>(1);
-  const [isHovering, setIsHovering] = useState<boolean>(false);
-  const [backgroundPosition, setBackgroundPosition] = useState<string>("center");
+  // useLoaderData() récupère les données du loader React Router
+  const product = useLoaderData() as Product;
+  
+  // HOOKS DE NAVIGATION
+  const navigate = useNavigate(); // Pour changer de page
+  const dispatch = useAppDispatch(); // Pour envoyer des actions Redux
+  
+  // ÉTATS LOCAUX DU COMPOSANT
+  const [quantity, setQuantity] = useState<number>(1); // Quantité sélectionnée
+  const [isHovering, setIsHovering] = useState<boolean>(false); // Souris sur l'image
+  const [backgroundPosition, setBackgroundPosition] = useState<string>("center"); // Position zoom
+  
+  // RÉFÉRENCE POUR L'EFFET DE ZOOM
   const zoomRef = useRef<HTMLDivElement>(null);
 
+  // FONCTION : AJOUTER AU PANIER
   const handleAddToCart = (): void => {
-    if (quantity < 1) return;
-    addToCart(product, quantity);
+    if (quantity < 1) return; // Validation sécurité
+    // DISPATCH REDUX : Envoie l'action au store
+    dispatch(addToCart({ product, quantity }));
   };
 
+  // FONCTION : GESTION DU ZOOM AU SURVOL
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>): void => {
     if (!zoomRef.current) return;
     
+    // CALCUL DE LA POSITION RELATIVE DE LA SOURIS
     const { left, top, width, height } = zoomRef.current.getBoundingClientRect();
-    const x = ((e.pageX - left) / width) * 100;
-    const y = ((e.pageY - top) / height) * 100;
+    const x = ((e.pageX - left) / width) * 100; // Pourcentage horizontal
+    const y = ((e.pageY - top) / height) * 100; // Pourcentage vertical
+    
+    // MISE À JOUR DE LA POSITION DU BACKGROUND
     setBackgroundPosition(`${x}% ${y}%`);
   };
 
+  // DÉBUT DU SURVOL
   const handleMouseEnter = (): void => {
-    setIsHovering(true);
+    setIsHovering(true); // Active l'effet de zoom
   };
 
+  // FIN DU SURVOL
   const handleMouseLeave = (): void => {
-    setIsHovering(false);
-    setBackgroundPosition("center");
+    setIsHovering(false); // Désactive l'effet de zoom
+    setBackgroundPosition("center"); // Recentre l'image
   };
 
+  // CHANGEMENT DE QUANTITÉ
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const value = parseInt(e.target.value);
+    // 🛡️ VALIDATION : Minimum 1
     setQuantity(value > 0 ? value : 1);
   };
 
+  // ALLER AU PANIER
   const handleViewCart = (): void => {
-    navigate("/cart");
+    navigate("/cart"); // Navigation vers la page panier
   };
 
-  // Gestion du cas où le produit n'existe pas
+  // GESTION DU CAS OÙ LE PRODUIT N'EXISTE PAS
   if (!product) {
     return (
       <div className="min-h-[852px] flex items-center justify-center px-6 py-8 font-primary bg-normalbg dark:bg-darkbg">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-primary dark:text-light mb-4">
-            Product not found
+            Produit non trouvé
           </h2>
           <Link
             to="/home"
             className="text-primary dark:text-light hover:text-dark dark:hover:text-lighter font-medium"
           >
             <FontAwesomeIcon icon={faArrowLeft} className="mr-2" />
-            Back to products
+            Retour aux produits
           </Link>
         </div>
       </div>
@@ -75,28 +93,30 @@ export default function ProductDetail(): JSX.Element {
   return (
     <div className="min-h-[852px] flex items-center justify-center px-6 py-8 font-primary bg-normalbg dark:bg-darkbg">
       <div className="max-w-5xl w-full mx-auto flex flex-col md:flex-row md:space-x-8 px-6 p-8">
-        {/* Product Image with Zoom Effect */}
+        
+        {/* SECTION IMAGE AVEC EFFET DE ZOOM */}
         <div
-          ref={zoomRef}
-          onMouseMove={isHovering ? handleMouseMove : undefined}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          ref={zoomRef} // Référence pour les calculs de position
+          onMouseMove={isHovering ? handleMouseMove : undefined} // Zoom seulement si survol actif
+          onMouseEnter={handleMouseEnter} // Début du survol
+          onMouseLeave={handleMouseLeave} // Fin du survol
           className="w-full md:w-1/2 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg overflow-hidden bg-cover cursor-zoom-in"
           style={{
-            backgroundImage: `url(${product.imageUrl})`,
-            backgroundSize: isHovering ? "200%" : "cover",
-            backgroundPosition: backgroundPosition,
-            transition: "background-size 0.3s ease",
+            backgroundImage: `url(${product.imageUrl})`, // Image de fond pour le zoom
+            backgroundSize: isHovering ? "200%" : "cover", // Zoom x2 au survol
+            backgroundPosition: backgroundPosition, // Position dynamique
+            transition: "background-size 0.3s ease", // Animation fluide
           }}
         >
+          {/* IMAGE INVISIBLE (juste pour la sémantique HTML) */}
           <img
             src={product.imageUrl}
             alt={product.name}
-            className="w-full h-full opacity-0"
+            className="w-full h-full opacity-0" // Invisible mais présente pour l'accessibilité
           />
         </div>
 
-        {/* Product Details */}
+        {/* SECTION DÉTAILS DU PRODUIT */}
         <div className="w-full md:w-1/2 flex flex-col space-y-6 mt-8 md:mt-0">
           <Link
             to="/home"
@@ -106,6 +126,7 @@ export default function ProductDetail(): JSX.Element {
             Retour à tous les produits
           </Link>
 
+          {/* INFORMATIONS DU PRODUIT */}
           <div>
             <h1 className="text-3xl font-extrabold text-primary dark:text-light mb-4">
               {product.name}
@@ -113,13 +134,16 @@ export default function ProductDetail(): JSX.Element {
             <p className="text-lg text-dark dark:text-lighter mb-4">
               {product.description}
             </p>
+            {/* PRIX */}
             <div className="text-2xl font-bold text-primary dark:text-light">
-              ${product.price.toFixed(2)}
+              {product.price.toFixed(2)} €
             </div>
           </div>
 
+          {/* SECTION ACTIONS */}
           <div className="flex flex-col space-y-4">
-            {/* Quantity Input */}
+            
+            {/* SÉLECTEUR DE QUANTITÉ */}
             <div className="flex items-center space-x-4">
               <label
                 htmlFor="quantity"
@@ -137,21 +161,21 @@ export default function ProductDetail(): JSX.Element {
               />
             </div>
 
-            {/* Add to Cart Button */}
+            {/* BOUTON AJOUTER AU PANIER */}
             <button
               onClick={handleAddToCart}
               className="w-full px-4 py-3 bg-primary dark:bg-light text-white dark:text-black rounded-md text-lg font-semibold hover:bg-dark dark:hover:bg-lighter transition duration-200"
-              aria-label={`Add ${quantity} ${product.name} to cart`}
+              aria-label={`Add ${quantity} ${product.name} to cart`} // Accessibilité
             >
               Ajouter au panier
               <FontAwesomeIcon icon={faShoppingCart} className="ml-2" />
             </button>
 
-            {/* View Cart Button */}
+            {/* BOUTON VOIR LE PANIER */}
             <button
               onClick={handleViewCart}
               className="w-full px-4 py-3 bg-primary dark:bg-light text-white dark:text-black rounded-md text-lg font-semibold hover:bg-dark dark:hover:bg-lighter transition duration-200"
-              aria-label="View shopping cart"
+              aria-label="View shopping cart" // Accessibilité
             >
               Voir le panier
               <FontAwesomeIcon icon={faShoppingBasket} className="ml-2" />

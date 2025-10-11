@@ -1,15 +1,17 @@
-import { useCart } from "../hooks/useCart";
+import { useAppDispatch } from "../hooks/redux"; 
+import { addToCart } from "../store/cartSlice"; 
 import type { Product } from "../types/product";
 import Price from "./Price";
 import { Link } from "react-router-dom";
 
-interface ProductCardProps {
-  product: Product;
-}
 
-// Composant carte produit : affiche un produit de manière visuelle et interactive
-export default function ProductCard({product}: ProductCardProps) {
-  const { addToCart } = useCart();
+export default function ProductCard({ product }: { product: Product }) {
+  const dispatch = useAppDispatch();
+
+  const handleAddToCart = () => {
+    dispatch(addToCart({ product, quantity: 1 }));
+  };
+
   return (
     <div className="w-72 rounded-md mx-auto border border-gray-300 dark:border-gray-600 shadow-md overflow-hidden flex flex-col bg-white dark:bg-gray-800 hover:border-primary dark:hover:border-lighter transition">
       <Link
@@ -32,13 +34,13 @@ export default function ProductCard({product}: ProductCardProps) {
         </p>
         <div className="flex items-center justify-between mt-auto">
           <div className="bg-lighter dark:bg-light text-primary font-medium text-sm py-2 px-4 rounded-tl-md">
-            <Price currency="$" price={product.price} />
+            <Price currency=" €" price={product.price} />
           </div>
           <button
             className="bg-primary dark:bg-light text-white dark:text-primary font-medium text-sm py-2 px-4 rounded-md hover:cursor-pointer"
-            onClick={() => addToCart(product, 1)}
+            onClick={handleAddToCart}
           >
-            Add to Cart
+           Ajouter au panier
           </button>
         </div>
       </div>

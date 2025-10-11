@@ -1,5 +1,6 @@
+import type { ActionData } from "../types/errors";
 import PageTitle from "./PageTitle";
-import type { ActionData, ProfileData } from "../types/profile";
+import type { ProfileData } from "../types/profile";
 import {
   Form,
   useLoaderData,
@@ -8,11 +9,10 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "react-toastify";
 
 export default function Profile() {
-  // HOOKS REACT ROUTER - Typage des données
   const initialProfileData = useLoaderData() as ProfileData;
   const actionData = useActionData() as ActionData | undefined;
   const navigation = useNavigation();
@@ -20,8 +20,11 @@ export default function Profile() {
   
   const isSubmitting = navigation.state === "submitting";
   const { logout } = useAuth();
+  
+  // useRef pour suivre l'état de traitement
+  const hasProcessedAction = useRef(false);
+  const lastActionData = useRef<ActionData | undefined>(undefined);
 
-  // ÉTAT LOCAL - Gestion des données du profil avec valeurs par défaut
   const [profileData, setProfileData] = useState<ProfileData>(() => ({
     name: initialProfileData.name || "",
     email: initialProfileData.email || "",
@@ -35,31 +38,43 @@ export default function Profile() {
     }
   }));
 
-  // EFFET - Gestion des réponses après soumission
+  // UN SEUL useEffect POUR TOUT GÉRER
   useEffect(() => {
-    if (actionData?.success) {
-      if (actionData.profileData?.emailUpdated) {
+    // Reset quand on commence une nouvelle soumission
+    if (isSubmitting) {
+      hasProcessedAction.current = false;
+      lastActionData.current = undefined;
+      return;
+    }
+    // Si pas d'actionData ou déjà traité, on sort
+    if (!actionData || hasProcessedAction.current) {return;}
+
+    // Si c'est le même actionData que le précédent, on sort
+    if (actionData === lastActionData.current) {return;}
+    
+    // Marquer comme traité et sauvegarder la référence
+    hasProcessedAction.current = true;
+    lastActionData.current = actionData;
+
+    if (actionData.success && actionData.profileData) {
+      if (actionData.profileData.emailUpdated) {
         sessionStorage.setItem("skipRedirectPath", "true");
         logout();
-        toast.success(
-          "Logged out successfully! Login again with updated email"
-        );
+        toast.success("Déconnexion réussie! Reconnectez-vous avec une adresse e-mail mise à jour.");
         navigate("/login");
       } else {
-        toast.success("Your Profile details are saved successfully!");
-        if (actionData.profileData) {
-          setProfileData(actionData.profileData);
-        }
+        toast.success("Les détails de votre profil ont été enregistrés avec succès!");
+        setProfileData(actionData.profileData);
       }
+    } else if (actionData.errors) {
+      toast.error("Veuillez corriger les erreurs dans le formulaire");
     }
-  }, [actionData, logout, navigate]);
+  }, [actionData, isSubmitting, logout, navigate]);
 
-  // STYLES - Classes CSS réutilisables
   const labelStyle = "block text-lg font-semibold text-primary dark:text-light mb-2";
   const h2Style = "block text-2xl font-semibold text-primary dark:text-light mb-2";
   const textFieldStyle = "w-full px-4 py-2 text-base border rounded-md transition border-primary dark:border-light focus:ring focus:ring-dark dark:focus:ring-lighter focus:outline-none text-gray-800 dark:text-lighter bg-white dark:bg-gray-600 placeholder-gray-400 dark:placeholder-gray-300";
 
-  // 🎯 FONCTION POUR METTRE À JOUR L'ADRESSE
   const updateAddressField = (field: keyof ProfileData['address'], value: string) => {
     setProfileData(prev => ({
       ...prev,
@@ -72,20 +87,20 @@ export default function Profile() {
 
   return (
     <div className="max-w-[1152px] min-h-[852px] mx-auto px-6 py-8 font-primary bg-normalbg dark:bg-darkbg">
-      <PageTitle title="My Profile" />
+      <PageTitle title="Mon profil" />
 
-      <Form method="PUT" className="space-y-6 max-w-[768px] mx-auto">
+      <Form method="POST" className="space-y-6 max-w-[768px] mx-auto">
         {/* INFORMATIONS PERSONNELLES */}
         <div>
-          <h2 className={h2Style}>Personal Details</h2>
+          <h2 className={h2Style}>Informations personnelles</h2>
           <label htmlFor="name" className={labelStyle}>
-            Name
+            Nom
           </label>
           <input
             id="name"
             name="name"
             type="text"
-            placeholder="Your Name"
+            placeholder="Votre Nom"
             className={textFieldStyle}
             value={profileData.name}
             onChange={(e) =>
@@ -111,7 +126,7 @@ export default function Profile() {
               id="email"
               name="email"
               type="email"
-              placeholder="Your Email"
+              placeholder="Votre Email"
               value={profileData.email}
               onChange={(e) =>
                 setProfileData((prev) => ({ ...prev, email: e.target.value }))
@@ -128,7 +143,7 @@ export default function Profile() {
 
           <div>
             <label htmlFor="mobileNumber" className={labelStyle}>
-              Mobile Number
+              Numéro portable
             </label>
             <input
               id="mobileNumber"
@@ -136,7 +151,7 @@ export default function Profile() {
               type="tel"
               required
               pattern="^\d{10}$"
-              title="Mobile number must be exactly 10 digits"
+              title="Le numéro de téléphone portable doit comporter exactement 10 chiffres"
               value={profileData.mobileNumber}
               onChange={(e) =>
                 setProfileData((prev) => ({
@@ -144,7 +159,7 @@ export default function Profile() {
                   mobileNumber: e.target.value,
                 }))
               }
-              placeholder="Your Mobile Number"
+              placeholder="Votre Numéro portable"
               className={textFieldStyle}
             />
             {actionData?.errors?.mobileNumber && (
@@ -157,15 +172,15 @@ export default function Profile() {
 
         {/* ADRESSE */}
         <div>
-          <h2 className={h2Style}>Address Details</h2>
+          <h2 className={h2Style}>Détails de l'adresse</h2>
           <label htmlFor="street" className={labelStyle}>
-            Street
+            Rue
           </label>
           <input
             id="street"
             name="street"
             type="text"
-            placeholder="Street details"
+            placeholder="Détails de la rue"
             value={profileData.address.street} 
             onChange={(e) => updateAddressField('street', e.target.value)}
             className={textFieldStyle}
@@ -183,13 +198,13 @@ export default function Profile() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <label htmlFor="city" className={labelStyle}>
-              City
+              Ville
             </label>
             <input
               id="city"
               name="city"
               type="text"
-              placeholder="Your City"
+              placeholder="Votre ville"
               value={profileData.address.city}
               onChange={(e) => updateAddressField('city', e.target.value)}
               className={textFieldStyle}
@@ -206,7 +221,7 @@ export default function Profile() {
 
           <div>
             <label htmlFor="state" className={labelStyle}>
-              State
+              Département
             </label>
             <input
               id="state"
@@ -215,7 +230,7 @@ export default function Profile() {
               required
               minLength={2}
               maxLength={30}
-              placeholder="Your State"
+              placeholder="Votre département"
               value={profileData.address.state}
               onChange={(e) => updateAddressField('state', e.target.value)}
               className={textFieldStyle}
@@ -231,19 +246,19 @@ export default function Profile() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <label htmlFor="postalCode" className={labelStyle}>
-              Postal Code
+              Code Postal
             </label>
             <input
               id="postalCode"
               name="postalCode"
               type="text"
-              placeholder="Your Postal Code"
+              placeholder="Votre code postal"
               value={profileData.address.postalCode}
               onChange={(e) => updateAddressField('postalCode', e.target.value)}
               className={textFieldStyle}
               required
               pattern="^\d{5}$"
-              title="Postal code must be exactly 5 digits"
+              title="Le code postal doit comporter exactement 5 chiffres"
             />
             {actionData?.errors?.postalCode && (
               <p className="text-red-500 text-sm mt-1">
@@ -254,7 +269,7 @@ export default function Profile() {
 
           <div>
             <label htmlFor="country" className={labelStyle}>
-              Country
+              Pays
             </label>
             <input
               id="country"
@@ -263,7 +278,7 @@ export default function Profile() {
               required
               minLength={2}
               maxLength={2}
-              placeholder="Your Country"
+              placeholder="Votre pays"
               value={profileData.address.country}
               onChange={(e) => updateAddressField('country', e.target.value)}
               className={textFieldStyle}
@@ -283,7 +298,7 @@ export default function Profile() {
             disabled={isSubmitting}
             className="px-6 py-2 mt-8 text-white dark:text-black text-xl rounded-md transition duration-200 bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? "Saving..." : "Save"}
+            {isSubmitting ? "Sauvegarde..." : "Sauvegarder"}
           </button>
         </div>
       </Form>

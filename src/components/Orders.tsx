@@ -12,8 +12,6 @@ function isValidOrder(order: unknown): order is OrderResponse {
 
 export default function Orders() {
   const loaderData = useLoaderData();
-  
-  console.log("🔍 [COMPONENT] Raw loader data:", loaderData);
 
   const orders: OrderResponse[] = (() => {
     try {
@@ -24,7 +22,7 @@ export default function Orders() {
       return loaderData.filter(isValidOrder);
       
     } catch (error) {
-      console.error("💥 [COMPONENT] Error processing orders:", error);
+      console.error("Error processing orders:", error);
       return [];
     }
   })();
@@ -48,9 +46,9 @@ export default function Orders() {
     return (
       <div className="min-h-[852px] container mx-auto px-6 py-12 font-primary dark:bg-darkbg">
         <div className="text-center">
-          <PageTitle title="My Orders" />
+          <PageTitle title="Mes commandes" />
           <p className="text-xl text-primary dark:text-lighter mt-8">
-            No orders found.
+            Aucune commande trouvée.
           </p>
         </div>
       </div>
@@ -60,22 +58,22 @@ export default function Orders() {
   return (
     <div className="min-h-[852px] container mx-auto px-6 py-12 font-primary dark:bg-darkbg">
       <div className="space-y-6 mt-4">
-        <PageTitle title="My Orders" />
+        <PageTitle title="Mes commandes" />
         {orders.map((order) => (
           <div
-            key={order.orderId} // ✅ Clé unique pour chaque commande
+            key={order.orderId} 
             className="bg-white dark:bg-gray-700 shadow-md rounded-md p-6"
           >
             <h2 className="text-xl font-semibold mb-2 text-primary dark:text-lighter">
-              Order #{order.orderNumber || `ORD-${order.orderId}`}
+              Commande {order.orderNumber || `ORD-${order.orderId}`}
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Status: <span className="font-medium">{order.status}</span>
+                Statut: <span className="font-medium">{order.status}</span>
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Payment: <span className="font-medium">{order.paymentStatus || "PENDING"}</span>
+                Paiement: <span className="font-medium">{order.paymentStatus || "En attente"}</span>
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Total: <span className="font-medium">{formatPrice(order.totalPrice)}</span>
@@ -89,12 +87,12 @@ export default function Orders() {
             {/* Articles de la commande - CORRECTION DES CLÉS */}
             <div className="mt-6">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                Order Items ({order.items?.length || 0})
+                L'article commandé ({order.items?.length || 0})
               </h3>
               <div className="space-y-4">
                 {order.items?.map((item: OrderItemResponse, index: number) => (
                   <div 
-                    key={item.orderItemId || `${order.orderId}-${item.productId}-${index}`} // ✅ Clé composite
+                    key={item.orderItemId || `${order.orderId}-${item.productId}-${index}`} // Clé composite
                     className="flex items-center border-b pb-4"
                   >
                     <img
@@ -110,10 +108,10 @@ export default function Orders() {
                         {item.productName}
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <p>Quantity: {item.quantity}</p>
-                        <p>Price: {formatPrice(item.price)}</p>
-                        <p>Subtotal: {formatPrice(item.subtotal || (item.price || 0) * (item.quantity || 0))}</p>
-                        <p>Product ID: {item.productId}</p>
+                        <p>Quantité: {item.quantity}</p>
+                        <p>Prix: {formatPrice(item.price)}</p>
+                        <p>Total: {formatPrice(item.subtotal || (item.price || 0) * (item.quantity || 0))}</p>
+                        <p>ID du produit: {item.productId}</p>
                       </div>
                     </div>
                   </div>

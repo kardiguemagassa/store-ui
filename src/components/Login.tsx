@@ -8,44 +8,45 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { toast } from "react-toastify";
-
+import { useAppDispatch } from "../hooks/redux"; 
+import { loginSuccess } from "../store/authSlice";
 import type { LoginResponse } from "../types/auth";
-import { useAuth } from "../hooks/useAuth";
 
 export default function Login() {
   const actionData = useActionData() as LoginResponse | undefined;
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const navigate = useNavigate();
-  const { loginSuccess } = useAuth();
+  const dispatch = useAppDispatch();
   
-  // ✅ useRef pour éviter de traiter actionData plusieurs fois
+  // useRef pour éviter de traiter actionData plusieurs fois
   const hasProcessedLogin = useRef(false);
 
   useEffect(() => {
-    // ✅ Si pas de données ou déjà traité, on sort
     if (!actionData || hasProcessedLogin.current) return;
 
     if (actionData.success) {
       if (actionData.jwtToken && actionData.user) {
-        // ✅ Marquer comme traité AVANT d'appeler loginSuccess
         hasProcessedLogin.current = true;
         
-        loginSuccess(actionData.jwtToken, actionData.user);
+        //REDUX envoyer des actions pour modifier l’état
+        dispatch(loginSuccess({ 
+          jwtToken: actionData.jwtToken, 
+          user: actionData.user 
+        }));
         
         const from = sessionStorage.getItem("redirectPath") || "/home";
         sessionStorage.removeItem("redirectPath");
         
-        toast.success("Login successful!");
+        toast.success("Connexion réussie!");
         navigate(from, { replace: true });
       }
     } else if (actionData.errors) {
       hasProcessedLogin.current = true;
-      toast.error(actionData.errors.message || "Login failed.");
+      toast.error(actionData.errors.message || "La connexion a échoué.");
     }
-  }, [actionData, loginSuccess, navigate]);
+  }, [actionData, dispatch, navigate]);
 
-  // ✅ Réinitialiser le flag quand on commence une nouvelle soumission
   useEffect(() => {
     if (isSubmitting) {
       hasProcessedLogin.current = false;
@@ -60,35 +61,32 @@ export default function Login() {
   return (
     <div className="min-h-[852px] flex items-center justify-center font-primary dark:bg-darkbg">
       <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg max-w-md w-full px-8 py-6">
-        <PageTitle title="Login" />
+        <PageTitle title="Se connecter" />
         
         <Form method="POST" className="space-y-6">
-          {/* Username Field */}
           <div>
             <label htmlFor="username" className={labelStyle}>
-              Username
+              Nom d'utilisateur
             </label>
             <input
               id="username"
               type="text"
               name="username"
-              placeholder="Your Username"
+              placeholder="Votre nom d'utilisateur"
               autoComplete="username"
               required
               className={textFieldStyle}
             />
           </div>
-
-          {/* Password Field */}
           <div>
             <label htmlFor="password" className={labelStyle}>
-              Password
+              Mot de passe
             </label>
             <input
               id="password"
               type="password"
               name="password"
-              placeholder="Your Password"
+              placeholder="Votre mot de passe"
               autoComplete="current-password"
               required
               minLength={4}
@@ -104,19 +102,19 @@ export default function Login() {
               disabled={isSubmitting}
               className="w-full px-6 py-2 text-white dark:text-black text-xl rounded-md transition duration-200 bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Authenticating..." : "Login"}
+              {isSubmitting ? "Authenticating..." : "Se connecter"}
             </button>
           </div>
         </Form>
 
         {/* Register Link */}
         <p className="text-center text-gray-600 dark:text-gray-400 mt-4">
-          Don't have an account?{" "}
+          Vous n'avez pas de compte ?{" "}
           <Link
             to="/register"
             className="text-primary dark:text-light hover:text-dark dark:hover:text-primary transition duration-200"
           >
-            Register Here
+            Inscrivez-vous ici
           </Link>
         </p>
       </div>

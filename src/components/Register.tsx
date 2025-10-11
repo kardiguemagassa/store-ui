@@ -15,21 +15,21 @@ import type { ActionData } from "../types/register";
 
 
 export default function Register() {
-  // 🎯 HOOKS REACT ROUTER - Récupération des données et états de navigation
+
   const actionData = useActionData() as ActionData | undefined;
   const navigation = useNavigation();
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const submit = useSubmit();
 
-  // 🎯 ÉTAT DE SOUMISSION - Indicateur de chargement pendant la soumission
+  // ÉTAT DE SOUMISSION - Indicateur de chargement pendant la soumission
   const isSubmitting = navigation.state === "submitting";
 
-  // 🎯 EFFET - Redirection après inscription réussie
+  // EFFET - Redirection après inscription réussie
   useEffect(() => {
     if (actionData?.success) {
       navigate("/login");
-      toast.success("Registration completed successfully. Try login..");
+      toast.success("Inscription réussie. Vous pouvez vous connecter.");
     }
   }, [actionData, navigate]);
 
@@ -51,13 +51,12 @@ export default function Register() {
     const confirmPwd = formData.get("confirmPwd") as string;
 
     if (password !== confirmPwd) {
-      toast.error("Passwords do not match!");
+      toast.error("Les mots de passe ne correspondent pas!");
       return false;
     }
     return true;
   };
 
-  // 🎯 STYLES - Classes CSS réutilisables pour la cohérence du design
   const labelStyle =
     "block text-lg font-semibold text-primary dark:text-light mb-2";
   const textFieldStyle =
@@ -66,27 +65,26 @@ export default function Register() {
   return (
     <div className="min-h-[752px] flex items-center justify-center font-primary dark:bg-darkbg">
       <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg max-w-md w-full px-8 py-6">
-        <PageTitle title="Register" />
+        <PageTitle title="Inscription" />
 
-        {/* 🎯 FORMULAIRE D'INSCRIPTION - Avec validation et gestion d'erreurs */}
         <Form
           method="POST"
           ref={formRef}
           onSubmit={handleSubmit}
           className="space-y-6"
         >
-          {/* 🎯 CHAMP NOM - Validation côté client et serveur */}
+          {/*Validation côté client et serveur */}
           <div>
             <label htmlFor="name" className={labelStyle}>
-              Name
+              Nom
             </label>
             <input
               id="name"
               type="text"
               name="name"
-              placeholder="Your Name"
+              placeholder="Votre Nom"
               required
-              minLength={5}
+              minLength={2}
               maxLength={30}
               className={textFieldStyle}
             />
@@ -97,7 +95,6 @@ export default function Register() {
             )}
           </div>
 
-          {/* 🎯 CHAMPS EMAIL ET TÉLÉPHONE - Disposition responsive */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label htmlFor="email" className={labelStyle}>
@@ -107,7 +104,7 @@ export default function Register() {
                 id="email"
                 type="email"
                 name="email"
-                placeholder="Your Email"
+                placeholder="Votre Email"
                 autoComplete="email"
                 required
                 className={textFieldStyle}
@@ -120,16 +117,16 @@ export default function Register() {
             </div>
             <div>
               <label htmlFor="mobileNumber" className={labelStyle}>
-                Mobile Number
+                Numéro portable
               </label>
               <input
                 id="mobileNumber"
                 type="tel"
                 name="mobileNumber"
-                placeholder="Your Mobile Number"
+                placeholder="Votre portable"
                 required
                 pattern="^\d{10}$"
-                title="Mobile number must be exactly 10 digits"
+                title="Le numéro de téléphone portable doit comporter exactement 10 chiffres"
                 className={textFieldStyle}
               />
               {actionData?.errors?.mobileNumber && (
@@ -140,16 +137,16 @@ export default function Register() {
             </div>
           </div>
 
-          {/* 🎯 MOT DE PASSE - Avec confirmation et validation */}
+          {/* MOT DE PASSE - Avec confirmation et validation */}
           <div>
             <label htmlFor="password" className={labelStyle}>
-              Password
+              Mot de passe
             </label>
             <input
               id="password"
               type="password"
               name="password"
-              placeholder="Your Password"
+              placeholder="Votre mot de passe"
               required
               autoComplete="new-password"
               minLength={8}
@@ -165,13 +162,13 @@ export default function Register() {
 
           <div>
             <label htmlFor="confirmPwd" className={labelStyle}>
-              Confirm Password
+              Confirmez le mot de passe
             </label>
             <input
               id="confirmPwd"
               type="password"
               name="confirmPwd"
-              placeholder="Confirm Your Password"
+              placeholder="Confirmez votre mot de passe"
               required
               autoComplete="confirm-password"
               minLength={8}
@@ -180,24 +177,24 @@ export default function Register() {
             />
           </div>
 
-          {/* 🎯 BOUTON DE SOUMISSION - État désactivé pendant la soumission */}
+          {/* désactivé pendant la soumission */}
           <button
             type="submit"
             disabled={isSubmitting}
             className="w-full px-6 py-2 text-white dark:text-black text-xl bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter rounded-md transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? "Registering..." : "Register"}
+            {isSubmitting ? "Registering..." : "S'inscrire"}
           </button>
         </Form>
 
-        {/* 🎯 LIEN DE CONNEXION - Redirection vers la page de login */}
+        {/* Redirection vers la page de login */}
         <p className="text-center text-gray-600 dark:text-gray-400 mt-4">
-          Already have an account?{" "}
+          Vous avez déjà un compte?{" "}
           <Link
             to="/login"
             className="text-primary dark:text-light hover:text-dark dark:hover:text-primary transition duration-200"
           >
-            Login Here
+            Connectez-vous ici
           </Link>
         </p>
       </div>

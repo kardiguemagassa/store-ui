@@ -1,174 +1,208 @@
-// components/Contact.tsx
-import React, { useEffect, useRef, useState } from "react";
-import { Form, useActionData, useNavigation, useSubmit } from "react-router-dom";
-import { toast } from "react-toastify";
+import React from "react";
 import PageTitle from "./PageTitle";
-import type { ContactActionData, ContactValidationErrors } from "../types/contact";
+import { Form } from "react-router-dom";
+import {
+  useActionData,
+  useNavigation,
+  useSubmit,
+  useLoaderData,
+} from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { toast } from "react-toastify";
+import type { ContactInfo, ContactActionData } from "../types/contact";
 
 export default function Contact() {
+  const contactInfo = useLoaderData() as ContactInfo;
   const actionData = useActionData() as ContactActionData | undefined;
   const formRef = useRef<HTMLFormElement>(null);
   const navigation = useNavigation();
   const submit = useSubmit();
-
-  const [errors, setErrors] = useState<ContactValidationErrors>({});
   const isSubmitting = navigation.state === "submitting";
-
-  /**
-   * Effect : gère le résultat de la soumission
-   */
+  
+  // RE-F POUR BLOQUER LES DOUBLONS
+  const hasShownSuccess = useRef(false);
+  const hasShownError = useRef(false);
+  
   useEffect(() => {
-    if (actionData?.success) {
+    if (actionData?.success && !hasShownSuccess.current) {
       formRef.current?.reset();
-      setErrors({});
-      toast.success("Votre message a été envoyé avec succès !");
-    } else if (actionData?.error) {
+      toast.success("Votre message a été envoyé avec succès!");
+      hasShownSuccess.current = true;
+      
+      // Reset après un délai pour permettre une nouvelle soumission
+      setTimeout(() => {
+        hasShownSuccess.current = false;
+      }, 1000);
+    }
+  }, [actionData?.success]);
+
+  useEffect(() => {
+    if (actionData?.error && !actionData.validationErrors && !hasShownError.current) {
       toast.error(actionData.error);
-
-      if (actionData.validationErrors) {
-        setErrors(actionData.validationErrors);
-      }
+      hasShownError.current = true;
+      
+      // Reset après un délai
+      setTimeout(() => {
+        hasShownError.current = false;
+      }, 1000);
     }
-  }, [actionData]);
+  }, [actionData?.error, actionData?.validationErrors]);
 
-  /**
-   * Efface l'erreur quand l'utilisateur corrige
-   */
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ): void => {
-    const { name } = e.target;
-    if (errors[name as keyof ContactValidationErrors]) {
-      const newErrors = { ...errors };
-      delete newErrors[name as keyof ContactValidationErrors];
-      setErrors(newErrors);
-    }
-  };
-
-  /**
-   * Gère la soumission avec confirmation
-   */
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    const confirmed = window.confirm(
-      "Êtes-vous sûr de vouloir envoyer ce message ?"
+    const userConfirmed = window.confirm(
+      "Etes-vous sûr de vouloir soumettre le formulaire?"
     );
 
-    if (confirmed) {
+    if (userConfirmed) {
       const formData = new FormData(formRef.current!);
       submit(formData, { method: "post" });
     } else {
-      toast.info("Envoi annulé");
+      toast.info("Soumission du formulaire annulée.");
     }
   };
 
-  // Styles
-  const labelStyle = "block text-lg font-semibold text-primary dark:text-light mb-2";
-  const textFieldStyle = "w-full px-4 py-2 text-base border rounded-md transition border-primary dark:border-light focus:ring focus:ring-dark dark:focus:ring-lighter focus:outline-none text-gray-800 dark:text-lighter bg-white dark:bg-gray-600 placeholder-gray-400 dark:placeholder-gray-300";
-  const errorFieldStyle = "w-full px-4 py-2 text-base border-2 border-red-500 rounded-md transition focus:ring focus:ring-red-300 focus:outline-none text-gray-800 dark:text-lighter bg-white dark:bg-gray-600 placeholder-gray-400 dark:placeholder-gray-300";
-  const errorTextStyle = "text-red-500 dark:text-red-400 text-sm mt-1";
-
+  const labelStyle =
+    "block text-lg font-semibold text-primary dark:text-light mb-2";
+  const textFieldStyle =
+    "w-full px-4 py-2 text-base border rounded-md transition border-primary dark:border-light focus:ring focus:ring-dark dark:focus:ring-lighter focus:outline-none text-gray-800 dark:text-lighter bg-white dark:bg-gray-600 placeholder-gray-400 dark:placeholder-gray-300";
+  
   return (
     <div className="max-w-[1152px] min-h-[852px] mx-auto px-6 py-8 font-primary bg-normalbg dark:bg-darkbg">
+      {/* Page Title */}
       <PageTitle title="Contactez-nous" />
-
+      {/* Contact Info */}
       <p className="max-w-[768px] mx-auto mt-8 text-gray-600 dark:text-lighter mb-8 text-center">
         N'hésitez pas à nous contacter pour toute question, commentaire ou suggestion.
       </p>
 
-      <Form
-        method="POST"
-        ref={formRef}
-        onSubmit={handleSubmit}
-        className="space-y-6 max-w-[768px] mx-auto"
-      >
-        {/* Nom */}
-        <div>
-          <label htmlFor="name" className={labelStyle}>
-            Nom <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            //required
-            //minLength={5}
-            //maxLength={30}
-            placeholder="Votre nom"
-            className={errors.name ? errorFieldStyle : textFieldStyle}
-            onChange={handleChange}
-          />
-          {errors.name && <p className={errorTextStyle}>{errors.name}</p>}
+      {/* Contact Info + Form Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-[952px] mx-auto mt-8">
+        {/* Left: Contact Details */}
+        <div className="text-primary dark:text-light p-6">
+          <h2 className="text-2xl font-semibold mb-4">Coordonnées</h2>
+          {contactInfo && (
+            <>
+              <p className="mb-4">
+                <strong>Téléphone:</strong> {contactInfo.phone}
+              </p>
+              <p className="mb-4">
+                <strong>Email:</strong> {contactInfo.email}
+              </p>
+              <p className="mb-4">
+                <strong>Adresse:</strong> {contactInfo.address}
+              </p>
+            </>
+          )}
         </div>
-
-        {/* Email + Téléphone */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        
+        {/* Contact Form */}
+        <Form
+          method="POST"
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="space-y-6 max-w-[768px] mx-auto"
+        >
           <div>
-            <label htmlFor="email" className={labelStyle}>
-              Email <span className="text-red-500">*</span>
+            <label htmlFor="name" className={labelStyle}>
+              Nom
             </label>
             <input
-              id="email"
-              name="email"
-              type="email"
+              id="name"
+              name="name"
+              type="text"
+              placeholder="Votre nom"
+              className={textFieldStyle}
               required
-              placeholder="votre@email.com"
-              className={errors.email ? errorFieldStyle : textFieldStyle}
-              onChange={handleChange}
+              minLength={5}
+              maxLength={30}
             />
-            {errors.email && <p className={errorTextStyle}>{errors.email}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="mobileNumber" className={labelStyle}>
-              Téléphone <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="mobileNumber"
-              name="mobileNumber"
-              type="tel"
-              required
-              placeholder="0623456789"
-              className={errors.mobileNumber ? errorFieldStyle : textFieldStyle}
-              onChange={handleChange}
-            />
-            {errors.mobileNumber && (
-              <p className={errorTextStyle}>{errors.mobileNumber}</p>
+            {actionData?.validationErrors?.name && (
+              <p className="text-red-500 text-sm mt-1">
+                {actionData.validationErrors.name}
+              </p>
             )}
           </div>
-        </div>
 
-        {/* Message */}
-        <div>
-          <label htmlFor="message" className={labelStyle}>
-            Message <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            id="message"
-            name="message"
-            rows={4}
-            placeholder="Votre message..."
-            //required
-            //minLength={5}
-            //maxLength={500}
-            className={errors.message ? errorFieldStyle : textFieldStyle}
-            onChange={handleChange}
-          />
-          {errors.message && <p className={errorTextStyle}>{errors.message}</p>}
-        </div>
+          {/* Email and mobile Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="email" className={labelStyle}>
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="Votre email"
+                className={textFieldStyle}
+                required
+              />
+              {actionData?.validationErrors?.email && (
+                <p className="text-red-500 text-sm mt-1">
+                  {actionData.validationErrors.email}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="mobileNumber" className={labelStyle}>
+                Numéro de portable
+              </label>
+              <input
+                id="mobileNumber"
+                name="mobileNumber"
+                type="tel"
+                required
+                pattern="^\d{10}$"
+                title="Le numéro de téléphone portable doit comporter exactement 10 chiffres"
+                placeholder="Votre portable"
+                className={textFieldStyle}
+              />
+              {actionData?.validationErrors?.mobileNumber && (
+                <p className="text-red-500 text-sm mt-1">
+                  {actionData.validationErrors.mobileNumber}
+                </p>
+              )}
+            </div>
+          </div>
+          <div>
+            <label htmlFor="message" className={labelStyle}>
+              Message
+            </label>
+            <textarea
+              id="message"
+              name="message"
+              rows={4}
+              placeholder="Votre message"
+              className={textFieldStyle}
+              required
+              minLength={5}
+              maxLength={500}
+            ></textarea>
+            {actionData?.validationErrors?.message && (
+              <p className="text-red-500 text-sm mt-1">
+                {actionData.validationErrors.message}
+              </p>
+            )}
+          </div>
 
-        {/* Bouton */}
-        <div className="text-center">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="px-6 py-2 text-white dark:text-black text-xl rounded-md transition duration-200 bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Envoi en cours..." : "Envoyer"}
-          </button>
-        </div>
-      </Form>
+          {/* Global Error Message */}
+          {actionData?.error && !actionData.validationErrors && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {actionData.error}
+            </div>
+          )}
+          <div className="text-center">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-6 py-2 text-white dark:text-black text-xl rounded-md transition duration-200 bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Submitting..." : "Envoyer"}
+            </button>
+          </div>
+        </Form>
+      </div>
     </div>
   );
 }

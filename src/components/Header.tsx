@@ -8,37 +8,42 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { useCart } from "../hooks/useCart";
+import { useAppSelector } from "../hooks/redux"; 
 import { useAuth } from "../hooks/useAuth";
 import { toast } from "react-toastify";
 import type { User } from "../types/auth"; 
 
 export default function Header() { 
-  // ⚡ ÉTAT DU THÈME - Gestion du mode sombre/clair avec persistance dans le localStorage
+
+  // ÉTAT DU THÈME - Gestion du mode sombre/clair avec persistance dans le localStorage
   const [theme, setTheme] = useState<string>(() => {
     return localStorage.getItem("theme") === "dark" ? "dark" : "light";
   });
 
-  // 🎯 VARIABLES D'ÉTAT - Gestion de l'ouverture/fermeture des menus déroulants
+  // VARIABLES D'ÉTAT - Gestion de l'ouverture/fermeture des menus déroulants
   const [isUserMenuOpen, setUserMenuOpen] = useState<boolean>(false);
   const [isAdminMenuOpen, setAdminMenuOpen] = useState<boolean>(false);
   
-  // 🎯 HOOKS REACT ROUTER - Navigation et localisation
+  // HOOKS REACT ROUTER Navigation et localisation
   const location = useLocation();
   
-  // 🎯 RÉFÉRENCE - Pour détecter les clics en dehors du menu utilisateur
+  // RÉFÉRENCE - Pour détecter les clics en dehors du menu utilisateur
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // 🎯 TOGGLES - Fonctions pour ouvrir/fermer les menus
+  // TOGGLES - Fonctions pour ouvrir/fermer les menus
   const toggleAdminMenu = () => setAdminMenuOpen((prev) => !prev);
   const toggleUserMenu = () => setUserMenuOpen((prev) => !prev);
 
-  // 🎯 HOOKS PERSONNALISÉS - Récupération des données globales
-  const { totalQuantity } = useCart();
+  // HOOKS REDUX - Récupération des données du panier
+  const totalQuantity = useAppSelector(state => 
+    state.cart.reduce((acc, item) => acc + item.quantity, 0)
+  );
+  
+  // HOOKS PERSONNALISÉS - Récupération des données d'authentification
   const { isAuthenticated, user, logout } = useAuth();
   const isAdmin = user?.roles?.includes("ROLE_ADMIN");
 
-  // 🎯 EFFET - Gestion du thème et de la fermeture des menus au clic externe
+  // EFFET - Gestion du thème et de la fermeture des menus au clic externe
   useEffect(() => {
     // Application du thème au document
     if (theme === "dark") {
@@ -51,7 +56,7 @@ export default function Header() {
     setAdminMenuOpen(false);
     setUserMenuOpen(false);
     
-    // 🎯 GESTIONNAIRE DE CLIC EXTERNE - Ferme les menus quand on clique ailleurs
+    // GESTIONNAIRE DE CLIC EXTERNE - Ferme les menus quand on clique ailleurs
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
@@ -61,30 +66,29 @@ export default function Header() {
     
     document.addEventListener("mousedown", handleClickOutside);
     
-    // 🧹 NETTOYAGE - Suppression de l'event listener au démontage
+    // NETTOYAGE - Suppression de l'event listener au démontage
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [theme, location.pathname]); // Réexécuté quand le thème ou la route change
 
-  // 🎯 BAScule du thème avec persistance
+  // Bacule du thème avec persistance
   const toggleTheme = () => {
     setTheme((prevTheme) => {
       const newTheme = prevTheme === "light" ? "dark" : "light";
-      localStorage.setItem("theme", newTheme); // 💾 Persistance dans le localStorage
+      localStorage.setItem("theme", newTheme); // Persistance dans le localStorage
       return newTheme;
     });
   };
 
-  // 🎯 DÉCONNEXION - Gestion de la déconnexion utilisateur
+  // DÉCONNEXION
   const handleLogout = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    logout(); // Appel de la fonction de déconnexion du hook useAuth
-    toast.success("Logged out successfully!");
-    // La redirection est gérée dans le hook useAuth ou ailleurs
+    logout();
+    toast.success("Déconnexion réussie!");
   };
 
-  // 🎯 FONCTION POUR AFFICHER LE NOM DE L'UTILISATEUR
+  // FONCTION POUR AFFICHER LE NOM DE L'UTILISATEUR
   const getUserDisplayName = (user: User | null): string => {
     if (!user) return "Hello User";
     
@@ -95,14 +99,14 @@ export default function Header() {
         : `Hello ${user.name}`;
     }
     
-    // Fallback sur username si disponible
+    // username si disponible
     if (user.username) {
       return user.username.length > 8 
         ? `Hello ${user.username.slice(0, 8)}...`
         : `Hello ${user.username}`;
     }
     
-    // Fallback sur email
+    // email
     if (user.email) {
       const emailUsername = user.email.split('@')[0];
       return emailUsername.length > 8 
@@ -113,7 +117,7 @@ export default function Header() {
     return "Hello User";
   };
 
-  // 🎯 CLASSES CSS - Réutilisables pour la stylisation
+  // CSS - Réutilisables
   const navLinkClass =
     "text-center text-lg font-primary font-semibold text-primary py-2 dark:text-light hover:text-dark dark:hover:text-lighter";
 
@@ -123,15 +127,12 @@ export default function Header() {
   return (
     <header className="border-b border-gray-300 dark:border-gray-600 sticky top-0 z-20 bg-normalbg dark:bg-darkbg">
       <div className="flex items-center justify-between mx-auto max-w-[1152px] px-6 py-4">
-        {/* 🎯 LOGO - Lien vers la page d'accueil */}
         <Link to="/" className={navLinkClass}>
           <FontAwesomeIcon icon={faTags} className="h-8 w-8" />
           <span className="font-bold">Eazy Stickers</span>
         </Link>
-        
-        {/* 🎯 NAVIGATION PRINCIPALE */}
         <nav className="flex items-center py-2 z-10">
-          {/* 🎯 BOUTON THEME - Basculer entre mode sombre/clair */}
+          {/* BOUTON THEME - Basculer entre mode sombre/clair */}
           <button
             className="flex items-center justify-center mx-3 w-8 h-8 rounded-full border border-primary dark:border-light transition duration-300 hover:bg-gray-300 dark:hover:bg-gray-600"
             aria-label="Toggle theme"
@@ -144,7 +145,7 @@ export default function Header() {
           </button>
           
           <ul className="flex space-x-6">
-            {/* 🎯 LIENS DE NAVIGATION - Navigation principale avec état actif */}
+            {/* Navigation principale avec état actif */}
             <li>
               <NavLink
                 to="/home"
@@ -152,7 +153,7 @@ export default function Header() {
                   isActive ? `underline ${navLinkClass}` : navLinkClass
                 }
               >
-                Home
+                Accueil
               </NavLink>
             </li>
             <li>
@@ -162,7 +163,7 @@ export default function Header() {
                   isActive ? `underline ${navLinkClass}` : navLinkClass
                 }
               >
-                About
+                À propos
               </NavLink>
             </li>
             <li>
@@ -176,7 +177,7 @@ export default function Header() {
               </NavLink>
             </li>
             
-            {/* 🎯 MENU UTILISATEUR - Affiché seulement si authentifié */}
+            {/* Affiché seulement si authentifié */}
             <li>
               {isAuthenticated ? (
                 <div className="relative" ref={userMenuRef}>
@@ -185,7 +186,7 @@ export default function Header() {
                     className="relative text-primary"
                   >
                     <span className={navLinkClass}>
-                      {getUserDisplayName(user)} {/* ✅ Utilisation sécurisée */}
+                      {getUserDisplayName(user)} {/* Utilisation sécurisée */}
                     </span>
                     <FontAwesomeIcon
                       icon={faAngleDown}
@@ -193,7 +194,7 @@ export default function Header() {
                     />
                   </button>
                   
-                  {/* 🎯 MENU DÉROULANT UTILISATEUR */}
+                  {/* MENU DÉROULANT UTILISATEUR */}
                   {isUserMenuOpen && (
                     <div className="absolute right-0 w-48 bg-normalbg dark:bg-darkbg border border-gray-300 dark:border-gray-600 rounded-md shadow-lg z-20 transition ease-in-out duration-200">
                       <ul className="py-2">
@@ -204,11 +205,11 @@ export default function Header() {
                         </li>
                         <li>
                           <Link to="/orders" className={dropdownLinkClass}>
-                            Orders
+                            Commandes
                           </Link>
                         </li>
                         
-                        {/* 🎯 SOUS-MENU ADMIN - Seulement pour les administrateurs */}
+                        {/* admin */}
                         {isAdmin && (
                           <li>
                             <button
@@ -225,7 +226,7 @@ export default function Header() {
                                     to="/admin/orders"
                                     className={dropdownLinkClass}
                                   >
-                                    Orders
+                                    Commandes
                                   </Link>
                                 </li>
                                 <li>
@@ -241,14 +242,14 @@ export default function Header() {
                           </li>
                         )}
 
-                        {/* 🎯 DÉCONNEXION */}
+                        {/* DÉCONNEXION */}
                         <li>
                           <Link
                             to="/home"
                             onClick={handleLogout}
                             className={dropdownLinkClass}
                           >
-                            Logout
+                            Déconnexion
                           </Link>
                         </li>
                       </ul>
@@ -256,19 +257,19 @@ export default function Header() {
                   )}
                 </div>
               ) : (
-                // 🎯 LIEN DE CONNEXION - Si utilisateur non authentifié
+                
                 <NavLink
                   to="/login"
                   className={({ isActive }: { isActive: boolean }) =>
                     isActive ? `underline ${navLinkClass}` : navLinkClass
                   }
                 >
-                  Login
+                  Se connecter
                 </NavLink>
               )}
             </li>
             
-            {/* 🎯 PANIER - Avec indicateur de quantité */}
+            {/* PANIER - Avec quantité */}
             <li>
               <Link to="/cart" className=" relative text-primary py-2">
                 <FontAwesomeIcon
