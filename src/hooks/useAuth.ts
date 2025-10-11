@@ -10,10 +10,8 @@ import {
   updateUser as updateUserAction
 } from '../store/authSlice';
 
-/**
- * Hook personnalisé pour l'authentification avec Redux
- * Remplace l'ancien useAuth du Context
- */
+
+//Hook personnalisé pour l'authentification avec Redux
 export function useAuth() {
   const dispatch = useAppDispatch();
   

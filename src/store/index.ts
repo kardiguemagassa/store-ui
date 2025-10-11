@@ -18,8 +18,7 @@ export const store = configureStore({
       },
     }),
 });
-
-// SUPPRIMEZ complètement store.subscribe() 
+ 
 // La persistance est gérée dans chaque slice
 
 export type RootState = ReturnType<typeof store.getState>;

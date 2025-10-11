@@ -4,7 +4,7 @@ import type { CartItem } from "../types/cart";
 import type { Product } from "../types/product";
 import { getErrorMessage } from "../types/errors";
 
-// Fonction pour charger le panier depuis le localStorage
+// charger le panier depuis le localStorage
 const getInitialCart = (): CartItem[] => {
   try {
     const storedCart = localStorage.getItem("cart");
