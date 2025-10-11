@@ -12,7 +12,6 @@ export async function profileLoader() {
       throw new Error("Aucune donnée de profil reçue");
     }
     
-    // Assurez-vous que l'adresse existe
     if (!profileData.address) {
       profileData.address = {
         street: "",
@@ -25,7 +24,6 @@ export async function profileLoader() {
     
     return profileData;
   } catch (error: unknown) {
-    // 🎯 CODE DÉJÀ PARFAIT
     const errorMessage = getErrorMessage(error);
     const apiError = error as ApiError;
     

@@ -4,11 +4,11 @@ import { handleError, type ApiError } from "../types/errors";
 
 export async function ordersLoader() {
   try {
-    console.log("🔄 [LOADER] Fetching orders...");
+    console.log("[LOADER] Fetching orders...");
     
     const response = await apiClient.get<BackendOrderResponse[]>("/orders");
     
-    console.log("✅ [LOADER] Raw orders data:", response.data);
+    console.log("[LOADER] Raw orders data:", response.data);
 
     const orders: OrderResponse[] = response.data.map((order: BackendOrderResponse, orderIndex: number) => ({
       orderId: order.orderId,
@@ -19,7 +19,7 @@ export async function ordersLoader() {
       paymentId: "",
       createdAt: order.createdAt,
       updatedAt: order.createdAt,
-      items: order.items.map((item: BackendOrderItem, itemIndex: number) => ({ // 🎯 TYPE CORRIGÉ
+      items: order.items.map((item: BackendOrderItem, itemIndex: number) => ({
         orderItemId: Date.now() + orderIndex * 1000 + itemIndex,
         productId: item.productId || 0,
         productName: item.productName || "Unknown Product",
@@ -43,11 +43,11 @@ export async function ordersLoader() {
       }
     }));
 
-    console.log("✅ [LOADER] Transformed orders:", orders);
+    console.log("[LOADER] Transformed orders:", orders);
     return orders;
     
   } catch (error: unknown) {
-    console.error("❌ [LOADER] Failed to fetch orders:", error);
+    console.error("[LOADER] Failed to fetch orders:", error);
     
     const errorMessage = handleError(error);
     const status = (error as ApiError)?.response?.status || 500;

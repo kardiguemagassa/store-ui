@@ -5,7 +5,7 @@ import { handleError, type ApiError } from "../types/errors";
 export async function contactsLoader(): Promise<Contacts[]> {
   try {
     const response = await apiClient.get<Contacts[]>("/contacts");
-    console.log("📥 Contacts chargés:", response.data);
+    console.log("Contacts chargés:", response.data);
     return response.data;
   } catch (error: unknown) {
     console.error(" Erreur lors du chargement:", error);
