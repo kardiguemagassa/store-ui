@@ -21,7 +21,6 @@ export const countryNameToCode: Record<string, string> = {
   'switzerland': 'CH',
   'portugal': 'PT',
   'mali': 'ML'
-  // Ajouter d'autres pays selon vos besoins
 };
 
 // Fonction pour convertir un nom de pays en code ISO
