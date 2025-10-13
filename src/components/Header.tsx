@@ -45,14 +45,14 @@ export default function Header() {
 
   // EFFET - Gestion du thème et de la fermeture des menus au clic externe
   useEffect(() => {
-    // Application du thème au document
+    // Quand le thème change, mets à jour le CSS AUTOMATIQUEMENT
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
     
-    // Fermeture des menus lors du changement de route
+    // "Quand l'utilisateur change de page, ferme les menus AUTOMATIQUEMENT"
     setAdminMenuOpen(false);
     setUserMenuOpen(false);
     
