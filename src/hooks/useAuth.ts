@@ -15,6 +15,8 @@ import {
 export function useAuth() {
   const dispatch = useAppDispatch();
   
+  // useAppSelector() - Lecture du State Redux
+  // Lire des données spécifiques du store Redux
   const jwtToken = useAppSelector(selectJwtToken);
   const user = useAppSelector(selectUser);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
