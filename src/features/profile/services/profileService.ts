@@ -3,6 +3,7 @@ import {
   handleApiError,
   extractValidationErrors,
   getErrorMessage,
+  logger,
   type ActionDataErrors,
   type ApiError
 } from '../../../shared/types/errors.types';
@@ -12,22 +13,21 @@ import type {
   ProfileUpdateRequest 
 } from '../types/profile.types';
 
-// ============================================
 // TYPES LOCAUX
-// ============================================
-
 interface ProfileActionResult {
   success: boolean;
   profileData?: ProfileData & { emailUpdated?: boolean };
   errors?: ActionDataErrors;
 }
 
-// ============================================
 // HELPER : Normaliser ProfileResponse → ProfileData
-// ============================================
-
 function normalizeProfileData(response: ProfileResponse): ProfileData {
-  console.log("🔄 Normalizing profile data:", response);
+  logger.debug("Normalisation données profil", "ProfileService", {
+    hasName: !!response.name,
+    hasEmail: !!response.email,
+    hasMobileNumber: !!response.mobileNumber,
+    hasAddress: !!response.address
+  });
   
   const normalized: ProfileData = {
     name: response.name || "",
@@ -42,46 +42,33 @@ function normalizeProfileData(response: ProfileResponse): ProfileData {
     }
   };
   
-  console.log("✅ Normalized profile data:", normalized);
-  
   return normalized;
 }
 
-// ============================================
-// ✅ HELPER : Obtenir le CSRF token
-// ============================================
 
-/**
- * Force la récupération du CSRF token en appelant /csrf-token
- * Ceci garantit que le cookie XSRF-TOKEN est défini
- */
+// HELPER : Obtenir le CSRF token
+
+// Force la récupération du CSRF token en appelant /csrf-token
 async function ensureCsrfToken(): Promise<void> {
   try {
-    console.log("🔄 Fetching CSRF token from backend...");
+    logger.debug("Récupération CSRF token", "ProfileService");
     
-    // ✅ Appeler l'endpoint CSRF
     await apiClient.get("/csrf-token");
     
-    console.log("✅ CSRF token endpoint called successfully");
-    console.log("📋 Cookies after CSRF fetch:", document.cookie);
+    logger.debug("CSRF token récupéré avec succès", "ProfileService");
     
   } catch (error) {
-    console.error("❌ Failed to fetch CSRF token:", error);
+    logger.warn("Échec récupération CSRF token", "ProfileService", error);
     // On continue quand même, le backend devrait gérer
   }
 }
 
-// ============================================
 // LOADER (pour React Router)
-// ============================================
-
 export async function profileLoader(): Promise<ProfileData> {
   try {
-    console.log('🔄 Loading profile data...');
+    logger.info("Chargement données profil", "ProfileService");
     
     const response = await apiClient.get<ProfileResponse>("/profile");
-    
-    console.log('📥 Backend response:', response.data);
     
     if (!response.data) {
       throw new Error("Aucune donnée de profil reçue");
@@ -89,12 +76,15 @@ export async function profileLoader(): Promise<ProfileData> {
     
     const profileData = normalizeProfileData(response.data);
     
-    console.log('✅ Profile loaded successfully');
+    logger.info("Profil chargé avec succès", "ProfileService", {
+      hasName: !!profileData.name,
+      hasEmail: !!profileData.email
+    });
     
     return profileData;
     
   } catch (error: unknown) {
-    console.error('❌ Error loading profile:', error);
+    logger.error("Erreur chargement profil", "ProfileService", error);
     
     const apiError = error as ApiError;
     
@@ -104,10 +94,7 @@ export async function profileLoader(): Promise<ProfileData> {
   }
 }
 
-// ============================================
 // ACTION (pour React Router)
-// ============================================
-
 export async function profileAction({ 
   request 
 }: { 
@@ -126,21 +113,21 @@ export async function profileAction({
     country: (formData.get("country") as string)?.trim() || "",     
   };
 
-  console.log('🔄 Updating profile with request:', profileRequest);
+  logger.info("Mise à jour profil demandée", "ProfileService", {
+    hasName: !!profileRequest.name,
+    hasEmail: !!profileRequest.email,
+    hasMobileNumber: !!profileRequest.mobileNumber,
+    hasAddress: !!(profileRequest.street || profileRequest.city)
+  });
 
   try {
-    // ✅ FIX CRITIQUE: Obtenir le CSRF token AVANT le PUT
+    // FIX CRITIQUE: Obtenir le CSRF token AVANT le PUT
     await ensureCsrfToken();
     
-    // ✅ Petit délai pour s'assurer que le cookie est bien défini
+    // Petit délai pour s'assurer que le cookie est bien défini
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    console.log("📋 Cookies before PUT:", document.cookie);
-    
-    // ✅ Maintenant faire le PUT
     const response = await apiClient.put<ProfileResponse>("/profile", profileRequest);
-
-    console.log('📥 Backend update response:', response.data);
 
     const backendResponse = response.data;
     const normalizedData = normalizeProfileData(backendResponse);
@@ -150,7 +137,9 @@ export async function profileAction({
       emailUpdated: backendResponse.emailUpdated || false
     };
     
-    console.log('✅ Profile updated successfully:', resultData);
+    logger.info("Profil mis à jour avec succès", "ProfileService", {
+      emailUpdated: resultData.emailUpdated
+    });
     
     return { 
       success: true, 
@@ -158,20 +147,22 @@ export async function profileAction({
     };
     
   } catch (error: unknown) {
-    console.error('❌ Error updating profile:', error);
+    logger.error("Erreur mise à jour profil", "ProfileService", error);
     
     const errorInfo = handleApiError(error);
     const validationErrors = extractValidationErrors(error);
 
     if (validationErrors) {
-      console.log('❌ Validation errors:', validationErrors);
+      logger.warn("Erreurs validation profil", "ProfileService", {
+        errorFields: Object.keys(validationErrors)
+      });
+      
       return { 
         success: false, 
         errors: validationErrors 
       };
     }
 
-    console.log('❌ General error:', errorInfo.message);
     return {
       success: false,
       errors: { general: errorInfo.message } as ActionDataErrors
@@ -179,17 +170,21 @@ export async function profileAction({
   }
 }
 
-// ============================================
 // API CALLS (fonctions réutilisables)
-// ============================================
-
 export async function getProfile(): Promise<ProfileData> {
   try {
     const response = await apiClient.get<ProfileResponse>("/profile");
-    return normalizeProfileData(response.data);
+    const profileData = normalizeProfileData(response.data);
+    
+    logger.debug("Profil récupéré via API", "ProfileService", {
+      hasName: !!profileData.name,
+      hasEmail: !!profileData.email
+    });
+    
+    return profileData;
     
   } catch (error: unknown) {
-    console.error('❌ Error fetching profile:', getErrorMessage(error));
+    logger.error("Erreur récupération profil API", "ProfileService", error);
     throw error;
   }
 }
@@ -198,9 +193,13 @@ export async function updateProfile(
   profileData: ProfileUpdateRequest
 ): Promise<ProfileData> {
   try {
-    console.log('🔄 updateProfile API call with:', profileData);
+    logger.info("Mise à jour profil via API", "ProfileService", {
+      hasName: !!profileData.name,
+      hasEmail: !!profileData.email,
+      hasMobileNumber: !!profileData.mobileNumber
+    });
     
-    // ✅ S'assurer que le CSRF token est disponible
+    // S'assurer que le CSRF token est disponible
     await ensureCsrfToken();
     await new Promise(resolve => setTimeout(resolve, 100));
     
@@ -209,12 +208,16 @@ export async function updateProfile(
       profileData
     );
     
-    console.log('📥 updateProfile response:', response.data);
+    const normalizedData = normalizeProfileData(response.data);
     
-    return normalizeProfileData(response.data);
+    logger.info("Profil mis à jour via API avec succès", "ProfileService", {
+      emailUpdated: response.data.emailUpdated || false
+    });
+    
+    return normalizedData;
     
   } catch (error: unknown) {
-    console.error('❌ Error updating profile:', getErrorMessage(error));
+    logger.error("Erreur mise à jour profil API", "ProfileService", error);
     throw error;
   }
 }
@@ -223,28 +226,57 @@ export function hasEmailChanged(
   oldEmail: string, 
   newEmail: string
 ): boolean {
-  return oldEmail.toLowerCase().trim() !== newEmail.toLowerCase().trim();
+  const changed = oldEmail.toLowerCase().trim() !== newEmail.toLowerCase().trim();
+  
+  logger.debug("Vérification changement email", "ProfileService", {
+    emailChanged: changed,
+    oldEmailLength: oldEmail.length,
+    newEmailLength: newEmail.length
+  });
+  
+  return changed;
 }
 
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  const valid = emailRegex.test(email);
+  
+  if (!valid) {
+    logger.debug("Validation email échouée", "ProfileService", {
+      emailLength: email.length
+    });
+  }
+  
+  return valid;
 }
 
 export function isValidPhone(phone: string): boolean {
   const phoneRegex = /^\d{10}$/;
-  return phoneRegex.test(phone);
+  const valid = phoneRegex.test(phone);
+  
+  if (!valid) {
+    logger.debug("Validation téléphone échouée", "ProfileService", {
+      phoneLength: phone.length
+    });
+  }
+  
+  return valid;
 }
 
 export function isValidPostalCode(postalCode: string): boolean {
   const postalCodeRegex = /^\d{5}$/;
-  return postalCodeRegex.test(postalCode);
+  const valid = postalCodeRegex.test(postalCode);
+  
+  if (!valid) {
+    logger.debug("Validation code postal échouée", "ProfileService", {
+      postalCodeLength: postalCode.length
+    });
+  }
+  
+  return valid;
 }
 
-// ============================================
 // EXPORT PAR DÉFAUT
-// ============================================
-
 const profileService = {
   profileLoader,
   profileAction,
@@ -257,44 +289,3 @@ const profileService = {
 };
 
 export default profileService;
-
-/**
- * ✅ CHANGEMENTS v3.1 - CSRF WORKAROUND:
- * 
- * 1. ✅ ensureCsrfToken():
- *    - Appelle GET /csrf-token pour forcer la création du cookie
- *    - Attend 100ms pour laisser le temps au navigateur de définir le cookie
- * 
- * 2. ✅ profileAction():
- *    - Appelle ensureCsrfToken() AVANT le PUT
- *    - Log les cookies avant le PUT pour vérifier
- * 
- * 3. ✅ updateProfile():
- *    - Même workaround pour l'API directe
- * 
- * FLUX CORRIGÉ:
- * 
- * User clique "Sauvegarder"
- *   → profileAction()
- *     → ensureCsrfToken()
- *       → GET /csrf-token
- *         → Backend crée cookie XSRF-TOKEN
- *           → Navigateur stocke le cookie ✅
- *             → Délai 100ms
- *               → PUT /profile avec X-XSRF-TOKEN header ✅
- *                 → Backend valide CSRF ✅
- *                   → Mise à jour réussie ! ✅
- * 
- * TESTS À FAIRE:
- * 
- * 1. Allez sur /profile
- * 2. Modifiez un champ
- * 3. Cliquez "Sauvegarder"
- * 4. Console doit montrer:
- *    🔄 Fetching CSRF token from backend...
- *    ✅ CSRF token endpoint called successfully
- *    📋 Cookies before PUT: ...XSRF-TOKEN=...
- *    ✅ [REQUEST] CSRF token added
- *    ✅ [RESPONSE] 200 /profile
- *    ✅ Profile updated successfully
- */
