@@ -1,11 +1,3 @@
-/**
- * PROFILE COMPONENT - AVEC DEBUG
- * 
- * ✅ Ajout de logs pour identifier le problème
- * 
- * VERSION DEBUG
- */
-
 import {
   Form,
   useLoaderData,
@@ -20,6 +12,7 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import type { ProfileData } from "../types/profile.types";
 import PageTitle from "../../../shared/components/PageTitle";
 import type { ActionDataErrors } from "../../../shared/types/errors.types";
+import { logger } from "../../../shared/types/errors.types";
 
 interface ProfileActionData {
   success?: boolean;
@@ -40,8 +33,12 @@ export default function Profile() {
   const hasProcessedAction = useRef(false);
   const lastActionData = useRef<ProfileActionData | undefined>(undefined);
 
-  // ✅ LOG: Données initiales
-  console.log("📥 Profile - Initial data:", initialProfileData);
+  // Log du chargement initial
+  logger.debug("Chargement page profil", "Profile", {
+    hasInitialData: !!initialProfileData,
+    hasName: !!initialProfileData.name,
+    hasEmail: !!initialProfileData.email
+  });
 
   const [profileData, setProfileData] = useState<ProfileData>(() => {
     const initial = {
@@ -57,14 +54,12 @@ export default function Profile() {
       }
     };
     
-    console.log("🔄 Profile - State initialized:", initial);
-    
     return initial;
   });
 
   useEffect(() => {
     if (isSubmitting) {
-      console.log("⏳ Profile - Submitting...");
+      logger.debug("Soumission formulaire en cours", "Profile");
       hasProcessedAction.current = false;
       lastActionData.current = undefined;
       return;
@@ -78,27 +73,31 @@ export default function Profile() {
       return;
     }
     
-    console.log("📥 Profile - Action data received:", actionData);
+    logger.debug("Données action reçues", "Profile", {
+      success: actionData.success,
+      hasErrors: !!actionData.errors,
+      emailUpdated: actionData.profileData?.emailUpdated
+    });
     
     hasProcessedAction.current = true;
     lastActionData.current = actionData;
 
     if (actionData.success && actionData.profileData) {
-      console.log("✅ Profile - Update successful:", actionData.profileData);
-      
       if (actionData.profileData.emailUpdated) {
-        console.log("📧 Profile - Email updated, logging out...");
+        logger.info("Email modifié - déconnexion requise", "Profile");
         sessionStorage.setItem("skipRedirectPath", "true");
         logout();
         toast.success("Déconnexion réussie! Reconnectez-vous avec votre nouvelle adresse e-mail.");
         navigate("/login");
       } else {
-        console.log("🔄 Profile - Updating state with new data");
+        logger.info("Profil mis à jour avec succès", "Profile");
         toast.success("Profil mis à jour avec succès!");
         setProfileData(actionData.profileData);
       }
     } else if (actionData.errors) {
-      console.error("❌ Profile - Validation errors:", actionData.errors);
+      logger.warn("Erreurs validation formulaire", "Profile", {
+        errorFields: Object.keys(actionData.errors)
+      });
       toast.error("Veuillez corriger les erreurs dans le formulaire");
     }
   }, [actionData, isSubmitting, logout, navigate]);
@@ -108,58 +107,18 @@ export default function Profile() {
   const textFieldStyle = "w-full px-4 py-2 text-base border rounded-md transition border-primary dark:border-light focus:ring focus:ring-dark dark:focus:ring-lighter focus:outline-none text-gray-800 dark:text-lighter bg-white dark:bg-gray-600 placeholder-gray-400 dark:placeholder-gray-300";
 
   const updateAddressField = (field: keyof ProfileData['address'], value: string) => {
-    console.log(`🔄 Profile - Updating ${field}:`, value);
-    
-    setProfileData(prev => {
-      const updated = {
-        ...prev,
-        address: {
-          ...prev.address,
-          [field]: value
-        }
-      };
-      
-      console.log("🔄 Profile - New state:", updated);
-      
-      return updated;
-    });
+    setProfileData(prev => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [field]: value
+      }
+    }));
   };
-
-  // ✅ LOG: État actuel du formulaire
-  console.log("📊 Profile - Current state:", profileData);
 
   return (
     <div className="max-w-[1152px] min-h-[852px] mx-auto px-6 py-8 font-primary bg-normalbg dark:bg-darkbg">
       <PageTitle title="Mon profil" />
-
-      {/* ✅ DEBUG PANEL (À SUPPRIMER EN PRODUCTION) */}
-      <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs">
-        <details>
-          <summary className="cursor-pointer font-bold">🐛 Debug Info (cliquer pour voir)</summary>
-          <div className="mt-2 space-y-2">
-            <div>
-              <strong>Initial Data:</strong>
-              <pre className="bg-white dark:bg-gray-900 p-2 rounded mt-1 overflow-auto">
-                {JSON.stringify(initialProfileData, null, 2)}
-              </pre>
-            </div>
-            <div>
-              <strong>Current State:</strong>
-              <pre className="bg-white dark:bg-gray-900 p-2 rounded mt-1 overflow-auto">
-                {JSON.stringify(profileData, null, 2)}
-              </pre>
-            </div>
-            {actionData && (
-              <div>
-                <strong>Action Data:</strong>
-                <pre className="bg-white dark:bg-gray-900 p-2 rounded mt-1 overflow-auto">
-                  {JSON.stringify(actionData, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-        </details>
-      </div>
 
       <Form method="POST" className="space-y-6 max-w-[768px] mx-auto">
         {/* INFORMATIONS PERSONNELLES */}
@@ -176,7 +135,6 @@ export default function Profile() {
             className={textFieldStyle}
             value={profileData.name}
             onChange={(e) => {
-              console.log("🔄 Profile - Updating name:", e.target.value);
               setProfileData((prev) => ({ ...prev, name: e.target.value }));
             }}
             required
@@ -202,7 +160,6 @@ export default function Profile() {
               placeholder="Votre Email"
               value={profileData.email}
               onChange={(e) => {
-                console.log("🔄 Profile - Updating email:", e.target.value);
                 setProfileData((prev) => ({ ...prev, email: e.target.value }));
               }}
               className={textFieldStyle}
@@ -228,7 +185,6 @@ export default function Profile() {
               title="Le numéro de téléphone portable doit comporter exactement 10 chiffres"
               value={profileData.mobileNumber}
               onChange={(e) => {
-                console.log("🔄 Profile - Updating mobileNumber:", e.target.value);
                 setProfileData((prev) => ({
                   ...prev,
                   mobileNumber: e.target.value,
@@ -372,7 +328,7 @@ export default function Profile() {
             type="submit"
             disabled={isSubmitting}
             className="px-6 py-2 mt-8 text-white dark:text-black text-xl rounded-md transition duration-200 bg-primary dark:bg-light hover:bg-dark dark:hover:bg-lighter disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => console.log("🚀 Profile - Submitting form with:", profileData)}
+            onClick={() => logger.debug("Soumission formulaire profil", "Profile")}
           >
             {isSubmitting ? "Sauvegarde..." : "Sauvegarder"}
           </button>
@@ -381,23 +337,3 @@ export default function Profile() {
     </div>
   );
 }
-
-/**
- * ✅ COMMENT UTILISER LE DEBUG:
- * 
- * 1. Remplacez votre Profile.tsx avec ce fichier
- * 2. Allez sur /profile
- * 3. Ouvrez la console (F12)
- * 4. Cliquez sur "🐛 Debug Info" pour voir l'état
- * 5. Modifiez un champ et regardez les logs
- * 6. Cliquez sur "Sauvegarder" et regardez les logs
- * 
- * Les logs vous diront EXACTEMENT:
- * - Ce que le loader renvoie
- * - Ce que le state contient
- * - Ce qui est envoyé au backend
- * - Ce que le backend renvoie
- * 
- * Une fois le problème identifié, vous pouvez supprimer
- * le panneau de debug et les console.log !
- */
