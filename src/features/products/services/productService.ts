@@ -1,9 +1,5 @@
-/**
- * PRODUCT SERVICE - FRONTEND PUBLIC
- * Aligné avec les endpoints backend publics
- */
-
 import apiClient from '../../../shared/api/apiClient';
+import { logger } from '../../../shared/types/errors.types';
 import type {
   Product,
   Category,
@@ -23,13 +19,13 @@ export async function advancedProductSearch(
   criteria: ProductSearchCriteria,
 ): Promise<PaginatedProductsResponse> {
   
-  // ✅ CORRECTION: Utiliser l'endpoint de recherche public
+  // l'endpoint de recherche public
   const params: Record<string, string> = {
     page: (criteria.page ?? DEFAULT_PAGE).toString(),
     size: (criteria.size ?? DEFAULT_SIZE).toString(),
     sortBy: criteria.sortBy || DEFAULT_SORT_BY,
     sortDirection: criteria.sortDirection || DEFAULT_SORT_DIRECTION,
-    activeOnly: 'true', // ✅ Toujours true pour le front public
+    activeOnly: 'true', // Toujours true pour le front public
     inStockOnly: criteria.inStockOnly ? 'true' : 'false'
   };
 
@@ -39,15 +35,20 @@ export async function advancedProductSearch(
   if (criteria.minPrice !== undefined) params.minPrice = criteria.minPrice.toString();
   if (criteria.maxPrice !== undefined) params.maxPrice = criteria.maxPrice.toString();
 
-  console.log("🔍 [ProductService] Requête API publique:", {
+  logger.debug("Requête recherche produits", "ProductService", {
     endpoint: '/products/search',
-    params
+    hasQuery: !!criteria.searchQuery,
+    hasCategory: !!criteria.categoryCode,
+    page: criteria.page,
+    size: criteria.size,
+    sortBy: criteria.sortBy,
+    sortDirection: criteria.sortDirection
   });
 
   try {
     const response = await apiClient.get<PaginatedProductsResponse>('/products/search', { params });
 
-    console.log("📥 [ProductService] Réponse paginée publique:", {
+    logger.debug("Réponse recherche produits", "ProductService", {
       totalElements: response.data.totalElements,
       totalPages: response.data.totalPages,
       currentPage: response.data.number,
@@ -57,7 +58,11 @@ export async function advancedProductSearch(
     return response.data;
 
   } catch (error) {
-    console.error("❌ [ProductService] Erreur API publique:", error);
+    logger.error("Erreur recherche produits", "ProductService", error, {
+      hasQuery: !!criteria.searchQuery,
+      hasCategory: !!criteria.categoryCode,
+      page: criteria.page
+    });
     
     return {
       content: [],
@@ -76,12 +81,13 @@ export async function getProducts(
   filters: PublicProductFilters,
 ): Promise<PaginatedProductsResponse> {
   
-  console.log("📦 [ProductService] getProducts public:", {
+  logger.debug("Récupération produits", "ProductService", {
     page: filters.page,
     size: filters.size,
     sortBy: filters.sortBy,
     sortDirection: filters.sortDirection,
-    query: filters.query
+    hasQuery: !!filters.query,
+    hasCategory: !!filters.category
   });
 
   const searchCriteria: ProductSearchCriteria = {
@@ -99,22 +105,27 @@ export async function getProducts(
 }
 
 // MÉTHODES SPÉCIALISÉES
-
 export async function getPopularProducts(limit: number = 8): Promise<Product[]> {
   try {
     const response = await apiClient.get<PaginatedProductsResponse>(
       `/products/featured?page=0&size=${limit}`
     );
+    
+    logger.debug("Produits populaires récupérés", "ProductService", {
+      limit,
+      count: response.data.content?.length || 0
+    });
+    
     return response.data.content;
   } catch (error) {
-    console.error("❌ [ProductService] Erreur produits populaires:", error);
+    logger.error("Erreur produits populaires", "ProductService", error, { limit });
     return [];
   }
 }
 
 export async function getNewProducts(limit: number = 8): Promise<Product[]> {
   try {
-    // Utiliser le tri par date de création
+    // tri par date de création
     const criteria: ProductSearchCriteria = {
       activeOnly: true,
       sortBy: "CREATED_DATE",
@@ -124,9 +135,15 @@ export async function getNewProducts(limit: number = 8): Promise<Product[]> {
     };
     
     const response = await advancedProductSearch(criteria);
+    
+    logger.debug("Nouveaux produits récupérés", "ProductService", {
+      limit,
+      count: response.content?.length || 0
+    });
+    
     return response.content;
   } catch (error) {
-    console.error("❌ [ProductService] Erreur nouveaux produits:", error);
+    logger.error("Erreur nouveaux produits", "ProductService", error, { limit });
     return [];
   }
 }
@@ -139,9 +156,19 @@ export async function getProductsByCategory(
     const response = await apiClient.get<PaginatedProductsResponse>(
       `/products/category/${categoryCode}?page=0&size=${limit}`
     );
+    
+    logger.debug("Produits par catégorie récupérés", "ProductService", {
+      categoryCode,
+      limit,
+      count: response.data.content?.length || 0
+    });
+    
     return response.data.content;
   } catch (error) {
-    console.error("❌ [ProductService] Erreur produits par catégorie:", error);
+    logger.error("Erreur produits par catégorie", "ProductService", error, {
+      categoryCode,
+      limit
+    });
     return [];
   }
 }
@@ -155,24 +182,34 @@ export async function getProductById(
       `/products/${productId}`, 
       { signal }
     );
+    
+    logger.debug("Produit récupéré par ID", "ProductService", {
+      productId,
+      hasProduct: !!response.data
+    });
+    
     return response.data;
   } catch (error) {
-    console.error("❌ [ProductService] Erreur produit par ID:", error);
+    logger.error("Erreur produit par ID", "ProductService", error, { productId });
     throw error;
   }
 }
 
 // CATÉGORIES
-
 export async function getCategories(signal?: AbortSignal): Promise<Category[]> {
   try {
     const response = await apiClient.get<Category[]>(
       '/categories', 
       { signal }
     );
+    
+    logger.debug("Catégories récupérées", "ProductService", {
+      count: response.data.length
+    });
+    
     return response.data;
   } catch (error) {
-    console.error("❌ [ProductService] Erreur catégories:", error);
+    logger.error("Erreur récupération catégories", "ProductService", error);
     return [];
   }
 }
@@ -182,11 +219,17 @@ export async function getCategoryByCode(
   signal?: AbortSignal
 ): Promise<Category | null> {
   const categories = await getCategories(signal);
-  return categories.find(cat => cat.code === categoryCode) || null;
+  const category = categories.find(cat => cat.code === categoryCode) || null;
+  
+  logger.debug("Recherche catégorie par code", "ProductService", {
+    categoryCode,
+    found: !!category
+  });
+  
+  return category;
 }
 
 // EXPORT PAR DÉFAUT
-
 const productService = {
   // Méthodes principales
   getProducts,

@@ -120,13 +120,10 @@ const defaultColumns: Column[] = [
   }
 ];
 
-// ============================================
-// HELPER POUR RÉCUPÉRER VALEUR PAR KEY
-// ============================================
 
-/**
- * ✅ Récupère la valeur d'une propriété du produit de manière type-safe
- */
+// HELPER POUR RÉCUPÉRER VALEUR PAR KEY
+
+//  Récupère la valeur d'une propriété du produit de manière type-safe
 const getProductValue = (product: Product, key: string): string | number | boolean | undefined => {
   // Type guard pour vérifier que la clé existe dans Product
   if (key in product) {
@@ -145,10 +142,7 @@ const getProductValue = (product: Product, key: string): string | number | boole
   return undefined;
 };
 
-// ============================================
 // COMPOSANT PRINCIPAL
-// ============================================
-
 export const ProductTable: React.FC<ProductTableProps> = ({
   products,
   columns = defaultColumns,
@@ -224,10 +218,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({
   );
 };
 
-// ============================================
 // SOUS-COMPOSANTS
-// ============================================
-
 const ActionsCell: React.FC<{
   product: Product;
   onEdit?: (product: Product) => void;
@@ -301,53 +292,3 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
 );
 
 export default ProductTable;
-
-/**
- * ✅ EXEMPLES D'UTILISATION:
- * 
- * // Tableau simple
- * <ProductTable 
- *   products={products}
- *   onEdit={(product) => navigate(`/admin/products/edit/${product.productId}`)}
- *   onDelete={(product) => handleDelete(product.productId)}
- *   onView={(product) => navigate(`/products/${product.productId}`)}
- * />
- * 
- * // Tableau avec colonnes personnalisées
- * <ProductTable 
- *   products={products}
- *   columns={[
- *     {
- *       key: 'name',
- *       label: 'Nom',
- *       sortable: true,
- *       render: (product) => <strong>{product.name}</strong>
- *     },
- *     {
- *       key: 'price',
- *       label: 'Prix',
- *       sortable: true,
- *       render: (product) => `${product.price} €`
- *     }
- *   ]}
- *   showActions={false}
- * />
- * 
- * // Tableau admin complet
- * <ProductTable 
- *   products={products}
- *   onEdit={handleEdit}
- *   onDelete={handleDelete}
- *   onView={handleView}
- *   onRestore={handleRestore}
- *   isLoading={loading}
- *   emptyMessage="Aucun produit trouvé avec ces filtres"
- * />
- * 
- * ✅ CHANGEMENTS v1.1:
- * - Remplacement de (product as any)[column.key] par getProductValue() type-safe
- * - Helper getProductValue() avec type guards
- * - Retour '—' par défaut si valeur undefined
- * - Plus aucun 'any' dans le code
- * - 100% type-safe
- */

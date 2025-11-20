@@ -1,20 +1,5 @@
-/**
- * PRODUCT FILTER COMPONENT
- * 
- * Composant réutilisable de filtres pour rechercher et trier des produits
- * 
- * VERSION 1.0 - PRODUCTION READY
- * 
- * @version 1.0
- * @location src/features/products/components/ProductFilter.tsx
- */
-
 import React, { useState } from 'react';
 import type { Category, AdminSortBy, AdminSortDirection } from '../types/product.types';
-
-// ============================================
-// TYPES
-// ============================================
 
 export interface ProductFilterState {
   query?: string;
@@ -32,10 +17,7 @@ interface ProductFilterProps {
   showActiveFilter?: boolean;
 }
 
-// ============================================
 // COMPOSANT PRINCIPAL
-// ============================================
-
 export const ProductFilter: React.FC<ProductFilterProps> = ({
   categories,
   filters,
@@ -158,10 +140,6 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({
   );
 };
 
-/**
- * ✅ Variantes du composant
- */
-
 // Filtre simple (public)
 export const SimpleProductFilter: React.FC<{
   categories: Category[];
@@ -194,35 +172,4 @@ export const SimpleProductFilter: React.FC<{
     </select>
   </div>
 );
-
 export default ProductFilter;
-
-/**
- * ✅ EXEMPLE D'UTILISATION:
- * 
- * const [filters, setFilters] = useState<ProductFilterState>({
- *   sortBy: 'NAME',
- *   sortDirection: 'ASC',
- *   activeOnly: false
- * });
- * 
- * const handleFilterChange = (updates: Partial<ProductFilterState>) => {
- *   setFilters(prev => ({ ...prev, ...updates }));
- * };
- * 
- * const handleReset = () => {
- *   setFilters({
- *     sortBy: 'NAME',
- *     sortDirection: 'ASC',
- *     activeOnly: false
- *   });
- * };
- * 
- * <ProductFilter
- *   categories={categories}
- *   filters={filters}
- *   onFilterChange={handleFilterChange}
- *   onReset={handleReset}
- *   showActiveFilter={true}
- * />
- */

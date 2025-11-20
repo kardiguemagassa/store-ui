@@ -1,15 +1,3 @@
-/**
- * STOCK BADGE COMPONENT
- * 
- * Composant réutilisable pour afficher le statut de stock d'un produit
- * avec badge coloré et emoji
- * 
- * VERSION 1.0 - PRODUCTION READY
- * 
- * @version 1.0
- * @location src/features/products/components/StockBadge.tsx
- */
-
 import React from 'react';
 import {
   getStockStatus,
@@ -19,9 +7,6 @@ import {
   type StockStatus
 } from '../types/product.types';
 
-// ============================================
-// TYPES
-// ============================================
 
 interface StockBadgeProps {
   quantity: number;
@@ -31,10 +16,8 @@ interface StockBadgeProps {
   className?: string;
 }
 
-// ============================================
-// COMPOSANT
-// ============================================
 
+// COMPOSANT
 export const StockBadge: React.FC<StockBadgeProps> = ({
   quantity,
   showEmoji = true,
@@ -71,9 +54,6 @@ export const StockBadge: React.FC<StockBadgeProps> = ({
   );
 };
 
-/**
- * ✅ Variantes du composant
- */
 
 // Badge compact (uniquement emoji)
 export const CompactStockBadge: React.FC<{ quantity: number }> = ({ quantity }) => (
@@ -90,9 +70,7 @@ export const LargeStockBadge: React.FC<{ quantity: number }> = ({ quantity }) =>
   <StockBadge quantity={quantity} showEmoji showLabel size="lg" />
 );
 
-/**
- * ✅ Composant avec message personnalisé
- */
+// Composant avec messages personnalisés
 export const StockBadgeWithMessage: React.FC<{
   quantity: number;
   customMessages?: Partial<Record<StockStatus, string>>;
@@ -115,9 +93,7 @@ export const StockBadgeWithMessage: React.FC<{
   );
 };
 
-/**
- * ✅ Composant avec alerte stock bas
- */
+// Composant avec alerte stock bas
 export const StockBadgeWithAlert: React.FC<{
   quantity: number;
   threshold?: number;
@@ -144,43 +120,3 @@ export const StockBadgeWithAlert: React.FC<{
 };
 
 export default StockBadge;
-
-/**
- * ✅ EXEMPLES D'UTILISATION:
- * 
- * // Badge simple
- * <StockBadge quantity={product.stockQuantity} />
- * 
- * // Badge compact (uniquement emoji)
- * <CompactStockBadge quantity={product.stockQuantity} />
- * 
- * // Badge détaillé
- * <DetailedStockBadge quantity={product.stockQuantity} />
- * 
- * // Badge avec message personnalisé
- * <StockBadgeWithMessage 
- *   quantity={product.stockQuantity}
- *   customMessages={{
- *     OUT_OF_STOCK: "Épuisé",
- *     VERY_LOW: "Dernières pièces",
- *     LOW_STOCK: "Stock limité",
- *     IN_STOCK: "Disponible"
- *   }}
- * />
- * 
- * // Badge avec alerte
- * <StockBadgeWithAlert 
- *   quantity={product.stockQuantity}
- *   threshold={10}
- *   onLowStock={() => console.log('Stock bas!')}
- * />
- * 
- * // Badge personnalisé
- * <StockBadge 
- *   quantity={product.stockQuantity}
- *   size="lg"
- *   showEmoji={true}
- *   showLabel={true}
- *   className="shadow-md"
- * />
- */

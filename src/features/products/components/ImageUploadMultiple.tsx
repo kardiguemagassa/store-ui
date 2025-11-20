@@ -1,20 +1,4 @@
-/**
- * IMAGE UPLOAD MULTIPLE COMPONENT
- * 
- * Composant réutilisable pour uploader plusieurs images
- * avec drag & drop et validation
- * 
- * VERSION 1.0 - PRODUCTION READY
- * 
- * @version 1.0
- * @location src/features/products/components/ImageUploadMultiple.tsx
- */
-
 import React, { useRef, useState } from 'react';
-
-// ============================================
-// TYPES
-// ============================================
 
 interface ImageUploadMultipleProps {
   onUpload: (files: FileList) => void | Promise<void>;
@@ -25,10 +9,7 @@ interface ImageUploadMultipleProps {
   className?: string;
 }
 
-// ============================================
 // COMPOSANT PRINCIPAL
-// ============================================
-
 export const ImageUploadMultiple: React.FC<ImageUploadMultipleProps> = ({
   onUpload,
   disabled = false,
@@ -151,9 +132,7 @@ export const ImageUploadMultiple: React.FC<ImageUploadMultipleProps> = ({
   );
 };
 
-/**
- * ✅ Variante avec prévisualisation
- */
+//Variante avec prévisualisation
 export const ImageUploadWithPreview: React.FC<
   ImageUploadMultipleProps & {
     previewImages?: string[];
@@ -194,45 +173,9 @@ export const ImageUploadWithPreview: React.FC<
   </div>
 );
 
-/**
- * ✅ Variante compacte
- */
+// Variante compacte
 export const CompactImageUpload: React.FC<ImageUploadMultipleProps> = (props) => (
   <ImageUploadMultiple {...props} className="p-4" />
 );
 
 export default ImageUploadMultiple;
-
-/**
- * ✅ EXEMPLES D'UTILISATION:
- * 
- * // Upload simple
- * <ImageUploadMultiple 
- *   onUpload={(files) => handleUpload(Array.from(files))}
- *   disabled={isLoading}
- * />
- * 
- * // Upload avec configuration
- * <ImageUploadMultiple 
- *   onUpload={handleUpload}
- *   maxFiles={5}
- *   maxFileSize={10 * 1024 * 1024} // 10MB
- *   accept="image/png,image/jpeg"
- *   disabled={isUploading}
- * />
- * 
- * // Upload avec prévisualisation
- * <ImageUploadWithPreview
- *   onUpload={handleUpload}
- *   previewImages={imageUrls}
- *   onRemovePreview={(index) => {
- *     setImageUrls(prev => prev.filter((_, i) => i !== index));
- *   }}
- * />
- * 
- * // Upload compact
- * <CompactImageUpload 
- *   onUpload={handleUpload}
- *   maxFiles={3}
- * />
- */

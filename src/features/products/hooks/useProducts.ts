@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import productService from '../services/productService';
-import { getErrorMessage } from '../../../shared/types/errors.types';
+import { getErrorMessage, logger } from '../../../shared/types/errors.types';
 import type { 
   PublicProductFilters, 
   PaginatedProductsResponse,
@@ -24,11 +24,18 @@ export function useProducts(filters: PublicProductFilters) {
       setError(null);
       
       try {
-        console.log("🔄 [useProducts] Chargement avec filtres:", filters);
+        logger.debug("Chargement produits avec filtres", "useProducts", {
+          page: filters.page,
+          size: filters.size,
+          sortBy: filters.sortBy,
+          sortDirection: filters.sortDirection,
+          hasQuery: !!filters.query,
+          hasCategory: !!filters.category
+        });
         
         const response: PaginatedProductsResponse = await productService.getProducts(filters);
         
-        console.log("✅ [useProducts] Réponse reçue:", {
+        logger.debug("Produits chargés avec succès", "useProducts", {
           productsCount: response.content?.length || 0,
           totalElements: response.totalElements,
           totalPages: response.totalPages,
@@ -44,7 +51,11 @@ export function useProducts(filters: PublicProductFilters) {
         });
       } catch (err) {
         const errorMsg = getErrorMessage(err);
-        console.error("❌ [useProducts] Erreur:", errorMsg);
+        logger.error("Erreur chargement produits", "useProducts", err, {
+          page: filters.page,
+          hasQuery: !!filters.query,
+          hasCategory: !!filters.category
+        });
         setError(errorMsg);
       } finally {
         setLoading(false);

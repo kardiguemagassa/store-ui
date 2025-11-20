@@ -27,7 +27,6 @@ export default function ProductDetail(): JSX.Element {
   
   const zoomRef = useRef<HTMLDivElement>(null);
 
-  // ✅ CORRECTION : Utiliser la fonction qui ajoute le BASE_URL
   const imageUrl = IMAGES_CONFIG.getProductImage(product?.imageUrl);
 
   // FONCTIONS

@@ -1,20 +1,4 @@
-/**
- * IMAGE GALLERY COMPONENT
- * 
- * Composant réutilisable pour afficher une galerie d'images
- * avec drag & drop pour réorganiser et suppression
- * 
- * VERSION 1.0 - PRODUCTION READY
- * 
- * @version 1.0
- * @location src/features/products/components/ImageGallery.tsx
- */
-
 import React, { useState } from 'react';
-
-// ============================================
-// TYPES
-// ============================================
 
 interface ImageGalleryProps {
   images: string[];
@@ -26,10 +10,6 @@ interface ImageGalleryProps {
   columns?: 2 | 3 | 4 | 5;
   className?: string;
 }
-
-// ============================================
-// COMPOSANT PRINCIPAL
-// ============================================
 
 export const ImageGallery: React.FC<ImageGalleryProps> = ({
   images,
@@ -205,9 +185,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   );
 };
 
-/**
- * ✅ État vide
- */
+// État vide
 const EmptyGallery: React.FC = () => (
   <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-12">
     <div className="text-center">
@@ -232,9 +210,7 @@ const EmptyGallery: React.FC = () => (
   </div>
 );
 
-/**
- * ✅ Variante simple (pas de réorganisation)
- */
+// Variante simple (pas de réorganisation)
 export const SimpleImageGallery: React.FC<{
   images: string[];
   onRemove: (url: string) => void;
@@ -247,59 +223,14 @@ export const SimpleImageGallery: React.FC<{
   />
 );
 
-/**
- * ✅ Variante grid compacte
- */
+// Variante grid compacte
 export const CompactImageGallery: React.FC<ImageGalleryProps> = (props) => (
   <ImageGallery {...props} columns={5} showBadges={false} />
 );
 
-/**
- * ✅ Variante grid large
- */
+// Variante grid large
 export const LargeImageGallery: React.FC<ImageGalleryProps> = (props) => (
   <ImageGallery {...props} columns={3} />
 );
 
 export default ImageGallery;
-
-/**
- * ✅ EXEMPLES D'UTILISATION:
- * 
- * // Galerie complète avec réorganisation
- * <ImageGallery 
- *   images={galleryImages}
- *   onReorder={handleReorder}
- *   onRemove={handleRemove}
- *   isLoading={isLoading}
- * />
- * 
- * // Galerie simple sans réorganisation
- * <SimpleImageGallery 
- *   images={galleryImages}
- *   onRemove={handleRemove}
- * />
- * 
- * // Galerie avec configuration personnalisée
- * <ImageGallery 
- *   images={galleryImages}
- *   onReorder={handleReorder}
- *   onRemove={handleRemove}
- *   columns={3}
- *   showBadges={false}
- *   allowReorder={true}
- * />
- * 
- * // Galerie compacte
- * <CompactImageGallery 
- *   images={galleryImages}
- *   onRemove={handleRemove}
- * />
- * 
- * // Galerie large
- * <LargeImageGallery 
- *   images={galleryImages}
- *   onReorder={handleReorder}
- *   onRemove={handleRemove}
- * />
- */

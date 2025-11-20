@@ -1,11 +1,3 @@
-/**
- * DROPDOWN COMPONENT - VERSION AVEC DISABLED
- * 
- * ✅ AJOUT: Prop disabled pour désactiver le dropdown
- * 
- * VERSION 3.0 - WITH DISABLED SUPPORT
- */
-
 import type { SortOption } from "../types/product.types";
 
 interface DropdownProps {
@@ -13,18 +5,16 @@ interface DropdownProps {
   options: SortOption[];
   selectedValue: SortOption;
   handleSort: (value: SortOption) => void;
-  disabled?: boolean; // ✅ AJOUT: Prop disabled
+  disabled?: boolean; 
 }
 
-/**
- * ✅ Composant Dropdown avec support disabled
- */
+// Composant Dropdown avec support disabled
 export default function Dropdown({
   label,
   options,
   selectedValue,
   handleSort,
-  disabled = false // ✅ AJOUT: Valeur par défaut
+  disabled = false 
 }: DropdownProps) {
   return (
     <div className="flex items-center gap-2 justify-end pr-12 flex-1 font-primary">
@@ -45,10 +35,10 @@ export default function Dropdown({
             ? 'opacity-50 cursor-not-allowed border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700' 
             : 'border-primary dark:border-light bg-white dark:bg-gray-800 cursor-pointer'
           }
-        `} // ✅ Classes conditionnelles pour disabled
+        `} 
         value={selectedValue}
-        onChange={(event) => !disabled && handleSort(event.target.value as SortOption)} // ✅ Empêcher les changements si disabled
-        disabled={disabled} // ✅ Attribut HTML disabled
+        onChange={(event) => !disabled && handleSort(event.target.value as SortOption)} // Empêcher les changements si disabled
+        disabled={disabled} // Attribut HTML disabled
       >
         {/* Génère une option pour chaque élément du tableau */}
         {options.map((optionVal) => (

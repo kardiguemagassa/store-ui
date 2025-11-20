@@ -6,16 +6,15 @@ import Pagination from "../../../../shared/components/Pagination";
 import apiClient from "../../../../shared/api/apiClient";
 import { useCategories } from "../../hooks/useCategories";
 import { useAdminProducts } from "../../hooks/useAdminProducts";
-import { getErrorMessage } from "../../../../shared/types/errors.types";
+import { getErrorMessage, logger } from "../../../../shared/types/errors.types";
 import { IMAGES_CONFIG, handleImageError } from "../../../../shared/constants/images";
 
-// ✅ CORRECTION : Utiliser la constante depuis product.types
 const DEFAULT_ADMIN_FILTERS: AdminProductFilters = {
   page: 0,
   size: 10,
   sortBy: "NAME",
   sortDirection: "ASC",
-  activeOnly: null // ✅ null au lieu de false
+  activeOnly: null
 };
 
 export default function AdminProducts() {
@@ -28,7 +27,7 @@ export default function AdminProducts() {
     const sortBy = (searchParams.get("sortBy") as AdminProductFilters['sortBy']) || DEFAULT_ADMIN_FILTERS.sortBy;
     const sortDirection = (searchParams.get("sortDirection") as AdminProductFilters['sortDirection']) || DEFAULT_ADMIN_FILTERS.sortDirection;
     
-    // ✅ CORRECTION : Gérer correctement activeOnly (boolean | null)
+    // Gérer correctement activeOnly (boolean | null)
     const activeOnlyParam = searchParams.get("activeOnly");
     let activeOnly: boolean | null;
     
@@ -37,7 +36,7 @@ export default function AdminProducts() {
     } else if (activeOnlyParam === "false") {
       activeOnly = false;
     } else {
-      activeOnly = null; // Tous les produits
+      activeOnly = null;
     }
 
     return {
@@ -57,14 +56,14 @@ export default function AdminProducts() {
   const safeCategories = Array.isArray(categories) ? categories : [];
   const isLoading = productsLoading || categoriesLoading;
 
-  // ✅ CORRECTION : updateFilters gère activeOnly (boolean | null)
+  // updateFilters gère activeOnly (boolean | null)
   const updateFilters = useCallback((updates: Partial<AdminProductFilters>) => {
-    console.log("🔄 AdminProducts - updateFilters:", updates);
+    logger.debug("Mise à jour filtres", "AdminProducts", { updates });
     
     const newParams = new URLSearchParams(searchParams);
     
     Object.entries(updates).forEach(([key, value]) => {
-      // ✅ CORRECTION : Gérer null correctement
+      // Gérer null correctement
       if (value === undefined || value === "" || value === null) {
         newParams.delete(key);
       } else {
@@ -81,14 +80,16 @@ export default function AdminProducts() {
       newParams.set("page", "0");
     }
     
-    console.log("📤 AdminProducts - Nouvelle URL:", newParams.toString());
     setSearchParams(newParams, { replace: true });
   }, [searchParams, setSearchParams]);
 
   const handlePageChange = useCallback((newPage: number) => {
-    console.log("📄 AdminProducts - Changement de page:", newPage);
+    logger.debug("Changement de page", "AdminProducts", { 
+      fromPage: filters.page, 
+      toPage: newPage 
+    });
     updateFilters({ page: newPage });
-  }, [updateFilters]);
+  }, [updateFilters, filters.page]);
 
   const handleDeleteProduct = async (productId: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) {
@@ -96,20 +97,24 @@ export default function AdminProducts() {
     }
 
     try {
+      logger.info("Suppression produit", "AdminProducts", { productId });
       await apiClient.delete(`/products/${productId}`);
-      toast.success("✅ Produit supprimé avec succès");
+      toast.success("Produit supprimé avec succès");
       refetch();
     } catch (error: unknown) {
+      logger.error("Erreur suppression produit", "AdminProducts", error, { productId });
       toast.error(getErrorMessage(error));
     }
   };
 
   const handleRestoreProduct = async (productId: number) => {
     try {
+      logger.info("Restauration produit", "AdminProducts", { productId });
       await apiClient.patch(`/products/admin/${productId}/restore`);
-      toast.success("✅ Produit restauré avec succès");
+      toast.success("Produit restauré avec succès");
       refetch();
     } catch (error: unknown) {
+      logger.error("Erreur restauration produit", "AdminProducts", error, { productId });
       toast.error(getErrorMessage(error));
     }
   };
@@ -119,6 +124,7 @@ export default function AdminProducts() {
   };
 
   const handleResetFilters = () => {
+    logger.debug("Réinitialisation filtres", "AdminProducts");
     setSearchParams(new URLSearchParams(), { replace: true });
   };
 
@@ -137,7 +143,7 @@ export default function AdminProducts() {
         totalProducts={pagination.totalElements} 
         activeOnly={filters.activeOnly}
         onToggleActiveOnly={(value) => {
-          console.log("🔄 Toggle activeOnly:", value);
+          logger.debug("Changement statut filtre", "AdminProducts", { activeOnly: value });
           updateFilters({ activeOnly: value });
         }}
       />
@@ -171,29 +177,22 @@ export default function AdminProducts() {
   );
 }
 
-// ============================================
 // SOUS-COMPOSANTS
-// ============================================
 
-// ✅ CORRECTION : Mettre à jour HeaderProps pour accepter boolean | null
 interface HeaderProps {
   totalProducts: number;
-  activeOnly: boolean | null; // ✅ Changer de boolean à boolean | null
-  onToggleActiveOnly: (value: boolean | null) => void; // ✅ Accepter boolean | null
+  activeOnly: boolean | null; 
+  onToggleActiveOnly: (value: boolean | null) => void; 
 }
 
 const Header = ({ totalProducts, activeOnly, onToggleActiveOnly }: HeaderProps) => {
-  // ✅ CORRECTION : Fonction helper pour déterminer la valeur actuelle
   const getCurrentStatus = (): string => {
     if (activeOnly === true) return "active";
     if (activeOnly === false) return "inactive";
     return "all";
   };
 
-  // ✅ CORRECTION : Gestion sécurisée du changement
   const handleStatusChange = (value: string) => {
-    console.log("🔄 Changement statut:", value);
-    
     switch (value) {
       case "active":
         onToggleActiveOnly(true);
@@ -218,7 +217,6 @@ const Header = ({ totalProducts, activeOnly, onToggleActiveOnly }: HeaderProps) 
       </div>
       
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* ✅ FILTRE STATUT CORRIGÉ */}
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400">
             Statut:
@@ -245,7 +243,6 @@ const Header = ({ totalProducts, activeOnly, onToggleActiveOnly }: HeaderProps) 
   );
 };
 
-// ✅ CORRECTION : Mettre à jour AdminFilterBarProps
 interface AdminFilterBarProps {
   filters: AdminProductFilters;
   categories: Category[];

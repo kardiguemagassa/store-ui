@@ -1,22 +1,11 @@
-/**
- * PAGE GALERIE PRODUIT - VERSION CORRIGÉE
- * 
- * Page dédiée à la gestion de la galerie d'images d'un produit.
- * Accessible via : /admin/products/:productId/gallery
- * 
- * @version 3.1 - URLs Images Corrigées
- * @location src/features/products/pages/admin/ProductGalleryPage.tsx
- */
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { getProductById } from '../../services/adminProductService';
-import { getErrorMessage } from '../../../../shared/types/errors.types';
+import { getErrorMessage, logger } from '../../../../shared/types/errors.types';
 import type { Product } from '../../types/product.types';
 import ProductGalleryManager from '../../components/ProductGalleryManager';
-// ✅ AJOUT : Import de IMAGES_CONFIG
 import { IMAGES_CONFIG, handleImageError } from '../../../../shared/constants/images';
 
 export default function ProductGalleryPage() {
@@ -27,14 +16,11 @@ export default function ProductGalleryPage() {
   const [loading, setLoading] = useState(true);
   const [imageCount, setImageCount] = useState(0);
 
-  // ============================================
   // CHARGEMENT DU PRODUIT
-  // ============================================
-
   useEffect(() => {
     const loadProduct = async () => {
       if (!productId) {
-        console.error('❌ Pas de productId dans l\'URL');
+        logger.error("ID produit manquant dans l'URL", "ProductGalleryPage");
         toast.error('ID de produit invalide');
         navigate('/admin/products');
         return;
@@ -42,14 +28,14 @@ export default function ProductGalleryPage() {
 
       try {
         setLoading(true);
-        console.log('🔄 Chargement du produit:', productId);
+        logger.debug("Chargement du produit", "ProductGalleryPage", { productId });
         
         const productData = await getProductById(Number(productId));
         
-        console.log('✅ Produit chargé:', {
+        logger.info("Produit chargé avec succès", "ProductGalleryPage", {
           productId: productData.productId,
-          name: productData.name,
-          imageUrl: productData.imageUrl,
+          productName: productData.name,
+          hasMainImage: !!productData.imageUrl,
           galleryCount: productData.galleryImages?.length || 0
         });
         
@@ -57,7 +43,7 @@ export default function ProductGalleryPage() {
         setImageCount(productData.galleryImages?.length || 0);
 
       } catch (error: unknown) {
-        console.error('❌ Erreur chargement produit:', error);
+        logger.error("Erreur chargement produit", "ProductGalleryPage", error, { productId });
         toast.error(`Erreur: ${getErrorMessage(error)}`);
         navigate('/admin/products');
       } finally {
@@ -68,12 +54,12 @@ export default function ProductGalleryPage() {
     loadProduct();
   }, [productId, navigate]);
 
-  // ============================================
   // HANDLERS
-  // ============================================
-
   const handleImagesChange = (images: string[]) => {
-    console.log('📸 Galerie mise à jour:', images.length, 'images');
+    logger.debug("Galerie mise à jour", "ProductGalleryPage", {
+      imagesCount: images.length,
+      productId
+    });
     setImageCount(images.length);
   };
 
@@ -89,10 +75,7 @@ export default function ProductGalleryPage() {
     navigate(`/products/${productId}`);
   };
 
-  // ============================================
   // ÉTATS DE CHARGEMENT
-  // ============================================
-
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -128,15 +111,10 @@ export default function ProductGalleryPage() {
     );
   }
 
-  // ✅ CORRECTION : Préparer l'URL de l'image principale
-  const mainImageUrl = product.imageUrl 
-    ? IMAGES_CONFIG.getProductImage(product.imageUrl)
-    : null;
+  // Préparer l'URL de l'image principale
+  const mainImageUrl = product.imageUrl ? IMAGES_CONFIG.getProductImage(product.imageUrl): null;
 
-  // ============================================
   // RENDER PRINCIPAL
-  // ============================================
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* En-tête de la page */}
@@ -215,7 +193,7 @@ export default function ProductGalleryPage() {
       {/* Informations du produit */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* ✅ CORRECTION : Image principale avec IMAGES_CONFIG */}
+          {/* Image principale */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
               Image principale
@@ -352,17 +330,3 @@ export default function ProductGalleryPage() {
     </div>
   );
 }
-
-/**
- * ✅ CORRECTIONS v3.1:
- * 
- * 1. Import de IMAGES_CONFIG et handleImageError
- * 2. Utilisation de IMAGES_CONFIG.getProductImage() pour l'image principale
- * 3. Ajout de onError={handleImageError} sur l'image
- * 4. Affichage du chemin de l'image brute en petit texte (debug)
- * 
- * Résultat :
- * - Image principale affichée correctement avec BASE_URL
- * - Fallback automatique sur placeholder si erreur
- * - Cohérence avec ProductDetail.tsx
- */

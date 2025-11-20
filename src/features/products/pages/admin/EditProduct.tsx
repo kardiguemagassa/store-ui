@@ -1,4 +1,3 @@
-// src/components/admin/EditProduct.tsx
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -10,7 +9,7 @@ import {
   type ProductUpdateData,
   formStateToUpdateData
 } from "../../types/product.types";
-import { getErrorMessage } from "../../../../shared/types/errors.types";
+import { getErrorMessage, logger } from "../../../../shared/types/errors.types";
 
 export default function EditProduct() {
   const { productId } = useParams<{ productId: string }>();
@@ -23,7 +22,7 @@ export default function EditProduct() {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // ✅ État formulaire avec ProductFormState
+  // État formulaire avec ProductFormState
   const [formData, setFormData] = useState<ProductFormState>({
     name: "",
     description: "",
@@ -36,7 +35,7 @@ export default function EditProduct() {
     isActive: true
   });
 
-  // ✅ VALIDATION PROFESSIONNELLE
+  // VALIDATION PROFESSIONNELLE
   const isValidUrl = (urlString: string): boolean => {
     if (!urlString.trim()) return true; // Champ vide = valide
     
@@ -49,13 +48,12 @@ export default function EditProduct() {
       // Validation des URLs complètes
       const url = new URL(urlString);
       return url.protocol === "http:" || url.protocol === "https:";
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_) {
+    } catch {
       return false;
     }
   };
 
-  // ✅ CORRECTION : Type spécifique pour validateField
+  // Type spécifique pour validateField
   const validateField = (name: keyof ProductFormState, value: unknown): string => {
     switch (name) {
       case 'name':
@@ -86,7 +84,7 @@ export default function EditProduct() {
     }
   };
 
-  // ✅ GESTION PROFESSIONNELLE DES CHANGEMENTS
+  // GESTION PROFESSIONNELLE DES CHANGEMENTS
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -110,33 +108,31 @@ export default function EditProduct() {
       processedValue = (e.target as HTMLInputElement).checked;
     }
     
-    console.log(`📝 [EditProduct] Changement de ${name}:`, processedValue);
-    
     setFormData(prev => ({
       ...prev,
       [name]: processedValue
     }));
   };
 
-  // ✅ CHARGEMENT DES DONNÉES
+  // CHARGEMENT DES DONNÉES
   const loadProduct = useCallback(async () => {
     if (!productId) {
-      console.error("❌ [EditProduct] Pas de productId dans l'URL");
+      logger.error("ID produit manquant dans l'URL", "EditProduct");
       navigate("/admin/products");
       return;
     }
 
     try {
-      console.log("🔄 [EditProduct] Chargement du produit:", productId);
+      logger.debug("Chargement du produit", "EditProduct", { productId });
       
       const response = await apiClient.get<Product>(`/products/${productId}`);
       const productData = response.data;
       
-      console.log("📦 [EditProduct] Produit chargé:", {
+      logger.info("Produit chargé avec succès", "EditProduct", {
         productId: productData.productId,
-        name: productData.name,
-        categoryId: productData.categoryId,
-        hasImageUrl: !!productData.imageUrl
+        productName: productData.name,
+        hasCategory: !!productData.categoryId,
+        hasImage: !!productData.imageUrl
       });
       
       setProduct(productData);
@@ -155,7 +151,7 @@ export default function EditProduct() {
       });
       
     } catch (error: unknown) {
-      console.error("❌ [EditProduct] Erreur chargement produit:", error);
+      logger.error("Erreur chargement produit", "EditProduct", error, { productId });
       toast.error(getErrorMessage(error));
       navigate("/admin/products");
     } finally {
@@ -166,20 +162,25 @@ export default function EditProduct() {
   const loadCategories = useCallback(async () => {
     try {
       setCategoriesLoading(true);
-      console.log("🔄 [EditProduct] Chargement des catégories...");
+      logger.debug("Chargement des catégories", "EditProduct");
       
       const response = await apiClient.get<Category[]>("/categories");
       
       if (response.data && Array.isArray(response.data)) {
         setCategories(response.data);
-        console.log("✅ [EditProduct] Catégories chargées:", response.data.length);
+        logger.debug("Catégories chargées avec succès", "EditProduct", {
+          count: response.data.length
+        });
       } else {
-        console.error("❌ [EditProduct] Format de réponse invalide");
+        logger.error("Format de réponse catégories invalide", "EditProduct", undefined, {
+          isArray: Array.isArray(response.data),
+          dataType: typeof response.data
+        });
         setCategories([]);
       }
       
     } catch (error: unknown) {
-      console.error("❌ [EditProduct] Erreur chargement catégories:", error);
+      logger.error("Erreur chargement catégories", "EditProduct", error);
       toast.error("Erreur lors du chargement des catégories");
       setCategories([]);
     } finally {
@@ -195,16 +196,19 @@ export default function EditProduct() {
     loadData();
   }, [loadCategories, loadProduct]);
 
-  // ✅ SOUMISSION PROFESSIONNELLE
+  // SOUMISSION PROFESSIONNELLE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log("🚀 [EditProduct] Soumission du formulaire:", formData);
+    logger.info("Soumission formulaire modification produit", "EditProduct", {
+      productId,
+      hasChanges: true // On vérifiera plus tard
+    });
     
     // Validation complète avant soumission
     const errors: Record<string, string> = {};
     
-    // ✅ CORRECTION : Type-safe validation
+    // Type-safe validation
     (Object.keys(formData) as Array<keyof ProductFormState>).forEach(key => {
       const error = validateField(key, formData[key]);
       if (error) {
@@ -214,6 +218,9 @@ export default function EditProduct() {
     
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
+      logger.warn("Erreurs validation formulaire", "EditProduct", {
+        errorFields: Object.keys(errors)
+      });
       toast.error("Veuillez corriger les erreurs dans le formulaire");
       return;
     }
@@ -231,6 +238,7 @@ export default function EditProduct() {
     );
     
     if (!hasChanges) {
+      logger.debug("Aucune modification détectée", "EditProduct", { productId });
       toast.info("Aucune modification détectée");
       return;
     }
@@ -240,25 +248,28 @@ export default function EditProduct() {
     try {
       const updateData: ProductUpdateData = formStateToUpdateData(formData, parseInt(productId!));
       
-      console.log("📝 [EditProduct] Données de mise à jour:", updateData);
+      logger.debug("Envoi données mise à jour", "EditProduct", {
+        productId,
+        fieldsUpdated: Object.keys(updateData).filter(key => key !== 'productId')
+      });
 
       await apiClient.put(`/products/${productId}`, updateData);
       
-      console.log("✅ [EditProduct] Produit modifié avec succès");
+      logger.info("Produit modifié avec succès", "EditProduct", { productId });
       toast.success("Produit modifié avec succès");
       
       // Rechargement pour avoir les données fraîches
       await loadProduct();
       
     } catch (error: unknown) {
-      console.error("❌ [EditProduct] Erreur lors de la modification:", error);
+      logger.error("Erreur modification produit", "EditProduct", error, { productId });
       toast.error(`Erreur: ${getErrorMessage(error)}`);
     } finally {
       setSaving(false);
     }
   };
 
-  // ✅ ÉTATS DE CHARGEMENT
+  // ÉTATS DE CHARGEMENT
   if (loading || categoriesLoading) {
     return (
       <div className="text-center py-12">
@@ -447,14 +458,14 @@ export default function EditProduct() {
             </label>
           </div>
 
-          {/* ✅ SOLUTION PROFESSIONNELLE : URL image */}
+          {/* URL image */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               URL de l'image principale
             </label>
             <input
-              type="text" // ✅ PROFESSIONNEL : "text" au lieu de "url"
-              inputMode="url" // ✅ Guide le clavier mobile
+              type="text"
+              inputMode="url"
               name="imageUrl"
               value={formData.imageUrl}
               onChange={handleChange}
@@ -482,10 +493,8 @@ export default function EditProduct() {
                       alt="Aperçu du produit" 
                       className="h-24 w-24 object-cover rounded-lg border shadow-sm"
                       onError={(e) => {
-                        console.warn("❌ Image non accessible:", formData.imageUrl);
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}
-                      onLoad={() => console.log("✅ Image chargée avec succès")}
                     />
                   </div>
                 ) : (

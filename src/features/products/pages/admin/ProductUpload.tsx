@@ -1,13 +1,11 @@
-// src/components/admin/ProductUpload.tsx
-//http://localhost:5173/admin/products/upload
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import type { Category, Product } from "../../types/product.types";
 import apiClient from "../../../../shared/api/apiClient";
-import { getErrorMessage } from "../../../../shared/types/errors.types";
+import { getErrorMessage, logger } from "../../../../shared/types/errors.types";
 
-// ✅ Interface locale pour le formulaire
+// Interface locale pour le formulaire
 interface ProductFormState {
   name: string;
   description: string;
@@ -26,7 +24,7 @@ export default function ProductUpload() {
     description: "",
     price: "",
     stockQuantity: "",
-    categoryId: "", // ✅ Vide par défaut (pas 0)
+    categoryId: "", 
     sku: ""
   });
   
@@ -36,33 +34,30 @@ export default function ProductUpload() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-  // ✅ CORRECTION 1: Meilleur chargement des catégories avec debug
+  // Chargement des catégories
   useEffect(() => {
     const loadCategories = async () => {
       try {
         setCategoriesLoading(true);
-        console.log("🔄 [ProductUpload] Chargement des catégories...");
+        logger.debug("Chargement des catégories", "ProductUpload");
         
         const response = await apiClient.get<Category[]>("/categories");
         
-        console.log("📦 [ProductUpload] Réponse API catégories:", {
-          status: response.status,
-          dataType: typeof response.data,
-          isArray: Array.isArray(response.data),
-          count: Array.isArray(response.data) ? response.data.length : 0,
-          data: response.data
-        });
-        
         if (response.data && Array.isArray(response.data)) {
           setCategories(response.data);
-          console.log("✅ [ProductUpload] Catégories chargées:", response.data.length);
+          logger.debug("Catégories chargées avec succès", "ProductUpload", {
+            count: response.data.length
+          });
         } else {
-          console.error("❌ [ProductUpload] Format de réponse invalide:", response.data);
+          logger.error("Format de réponse catégories invalide", "ProductUpload", undefined, {
+            responseType: typeof response.data,
+            isArray: Array.isArray(response.data)
+          });
           toast.error("Format de réponse catégories invalide");
           setCategories([]);
         }
       } catch (error) {
-        console.error("❌ [ProductUpload] Erreur chargement catégories:", error);
+        logger.error("Erreur chargement catégories", "ProductUpload", error);
         toast.error("Erreur lors du chargement des catégories");
         setCategories([]);
       } finally {
@@ -77,7 +72,6 @@ export default function ProductUpload() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    console.log(`📝 [ProductUpload] Changement de ${name}:`, value);
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -107,6 +101,12 @@ export default function ProductUpload() {
       setImagePreview(e.target?.result as string);
     };
     reader.readAsDataURL(file);
+
+    logger.debug("Image sélectionnée", "ProductUpload", {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
   };
 
   const handleRemoveImage = () => {
@@ -115,83 +115,83 @@ export default function ProductUpload() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    logger.debug("Image supprimée", "ProductUpload");
   };
 
-  // ✅ CORRECTION 2: Validation stricte avant soumission
-  // Dans handleSubmit, remplacer la création du produit par:
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  console.log("🚀 [ProductUpload] Soumission du formulaire:", formData);
-  
-  // Validation...
-  if (!selectedImage) {
-    toast.error("Veuillez sélectionner une image pour le produit.");
-    return;
-  }
-
-  // Validation des champs...
-  if (!formData.categoryId || formData.categoryId === "" || formData.categoryId === "0") {
-    toast.error("Veuillez sélectionner une catégorie valide");
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    // ✅ CORRECTION: Utiliser FormData pour l'envoi
-    const formDataToSend = new FormData();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    // Ajouter les données du produit
-    formDataToSend.append("product", new Blob([JSON.stringify({
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      price: parseFloat(formData.price),
-      stockQuantity: parseInt(formData.stockQuantity),
-      categoryId: parseInt(formData.categoryId),
-      sku: formData.sku.trim(),
-      isActive: true
-    })], { type: "application/json" }));
+    logger.info("Soumission formulaire création produit", "ProductUpload", {
+      hasImage: !!selectedImage,
+      categorySelected: !!formData.categoryId,
+      formFields: Object.keys(formData).filter(key => formData[key as keyof ProductFormState])
+    });
 
-    // Ajouter l'image
-    formDataToSend.append("image", selectedImage);
+    if (!selectedImage) {
+      toast.error("Veuillez sélectionner une image pour le produit.");
+      return;
+    }
 
-    console.log("📦 [ProductUpload] Envoi FormData avec:", {
-      product: {
-        name: formData.name,
+    if (!formData.categoryId || formData.categoryId === "" || formData.categoryId === "0") {
+      toast.error("Veuillez sélectionner une catégorie valide");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const formDataToSend = new FormData();
+      
+      // Ajouter les données du produit
+      formDataToSend.append("product", new Blob([JSON.stringify({
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        price: parseFloat(formData.price),
+        stockQuantity: parseInt(formData.stockQuantity),
+        categoryId: parseInt(formData.categoryId),
+        sku: formData.sku.trim(),
+        isActive: true
+      })], { type: "application/json" }));
+
+      // Ajouter l'image
+      formDataToSend.append("image", selectedImage);
+
+      logger.debug("Envoi données produit", "ProductUpload", {
+        productName: formData.name,
+        categoryId: formData.categoryId,
+        imageName: selectedImage.name
+      });
+
+      const response = await apiClient.post<Product>("/products/create-with-image", formDataToSend, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const newProduct = response.data;
+      
+      logger.info("Produit créé avec succès", "ProductUpload", {
+        productId: newProduct.productId,
+        productName: newProduct.name,
+        hasImageUrl: !!newProduct.imageUrl
+      });
+
+      toast.success("Produit créé avec succès!");
+      navigate("/admin/products");
+
+    } catch (error: unknown) {
+      logger.error("Erreur création produit", "ProductUpload", error, {
+        productName: formData.name,
         categoryId: formData.categoryId
-      },
-      image: selectedImage.name
-    });
+      });
+      const errorMessage = getErrorMessage(error);
+      toast.error(`Erreur: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    // ✅ ENVOI AVEC multipart/form-data
-    const response = await apiClient.post<Product>("/products/create-with-image", formDataToSend, {
-      headers: {
-        "Content-Type": "multipart/form-data", // ✅ CRITIQUE
-      },
-    });
-
-    const newProduct = response.data;
-    
-    console.log("✅ [ProductUpload] Produit créé avec image:", {
-      productId: newProduct.productId,
-      name: newProduct.name,
-      imageUrl: newProduct.imageUrl
-    });
-
-    toast.success("Produit créé avec succès!");
-    navigate("/admin/products");
-
-  } catch (error: unknown) {
-    console.error("❌ [ProductUpload] Erreur détaillée:", error);
-    const errorMessage = getErrorMessage(error);
-    toast.error(`Erreur: ${errorMessage}`);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-  // ✅ État de chargement des catégories
+  // État de chargement des catégories
   if (categoriesLoading) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-8">
@@ -210,7 +210,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           Ajouter un nouveau produit
         </h1>
 
-        {/* ✅ CORRECTION 4: Alerte si pas de catégories */}
+        {/* Alerte si pas de catégories */}
         {categories.length === 0 && !categoriesLoading && (
           <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
             <p className="text-yellow-800 dark:text-yellow-200 font-medium">
@@ -414,16 +414,3 @@ const handleSubmit = async (e: React.FormEvent) => {
     </div>
   );
 }
-
-/**
- * ✅ CORRECTIONS APPLIQUÉES v2.0:
- * 
- * 1. categoryId vide par défaut (pas "0")
- * 2. Validation stricte avant soumission
- * 3. Conversion Number explicite avec vérification
- * 4. Logs de debug détaillés à chaque étape
- * 5. Alerte si aucune catégorie disponible
- * 6. État de chargement des catégories
- * 7. Affichage du nombre de catégories
- * 8. Gestion d'erreurs améliorée
- */

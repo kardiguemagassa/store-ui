@@ -1,33 +1,10 @@
-/**
- * USE PRODUCT GALLERY HOOK
- * 
- * Hook custom pour gérer la galerie d'images d'un produit
- * Centralise toute la logique métier de la galerie
- * 
- * VERSION 1.0 - PRODUCTION READY
- * 
- * Fonctionnalités:
- * - Chargement des images existantes
- * - Upload multiple avec validation
- * - Suppression avec confirmation
- * - Réorganisation par drag & drop
- * - Gestion des états et erreurs
- * 
- * @version 1.0
- * @location src/features/products/hooks/useProductGallery.ts
- */
-
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import type { Product } from '../types/product.types';
 import { getProductById, removeGalleryImage, reorderGallery, uploadGalleryImages } from '../services/adminProductService';
-import { getErrorMessage } from '../../../shared/types/errors.types';
+import { getErrorMessage, logger } from '../../../shared/types/errors.types';
 
-
-// ============================================
 // TYPES
-// ============================================
-
 interface UseProductGalleryOptions {
   productId: number;
   initialImages?: string[];
@@ -55,10 +32,7 @@ interface UseProductGalleryReturn {
   validateFiles: (files: FileList) => { valid: File[]; errors: string[] };
 }
 
-// ============================================
 // HOOK PRINCIPAL
-// ============================================
-
 export function useProductGallery(
   options: UseProductGalleryOptions
 ): UseProductGalleryReturn {
@@ -77,9 +51,7 @@ export function useProductGallery(
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * ✅ Chargement initial des images
-   */
+  // Charger les images initiales si non fournies
   useEffect(() => {
     const loadImages = async () => {
       if (initialImages.length > 0) {
@@ -89,16 +61,23 @@ export function useProductGallery(
 
       try {
         setIsLoading(true);
+        logger.debug("Chargement images galerie", "useProductGallery", { productId });
+        
         const product: Product = await getProductById(productId);
         
         if (product.galleryImages && product.galleryImages.length > 0) {
           setImages(product.galleryImages);
           onImagesChange?.(product.galleryImages);
+          
+          logger.debug("Images galerie chargées", "useProductGallery", {
+            productId,
+            imagesCount: product.galleryImages.length
+          });
         }
       } catch (err: unknown) {
         const errorMessage = getErrorMessage(err);
+        logger.error("Erreur chargement galerie", "useProductGallery", err, { productId });
         setError(errorMessage);
-        console.error('❌ Erreur chargement galerie:', errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -107,9 +86,7 @@ export function useProductGallery(
     loadImages();
   }, [productId, initialImages.length, onImagesChange, initialImages]);
 
-  /**
-   * ✅ Validation des fichiers
-   */
+  // Validation des fichiers avant upload
   const validateFiles = useCallback(
     (files: FileList): { valid: File[]; errors: string[] } => {
       const fileArray = Array.from(files);
@@ -144,9 +121,7 @@ export function useProductGallery(
     [maxFileSize, maxFiles, allowedTypes]
   );
 
-  /**
-   * ✅ Upload d'images
-   */
+  // Upload des images
   const uploadImages = useCallback(
     async (files: FileList): Promise<void> => {
       if (files.length === 0) return;
@@ -157,6 +132,10 @@ export function useProductGallery(
       if (errors.length > 0) {
         const errorMessage = errors.join('\n');
         setError(errorMessage);
+        logger.warn("Validation fichiers échouée", "useProductGallery", {
+          filesCount: files.length,
+          errorsCount: errors.length
+        });
         toast.error(errorMessage);
         return;
       }
@@ -167,7 +146,11 @@ export function useProductGallery(
       setError(null);
 
       try {
-        console.log(`🔄 Upload de ${valid.length} image(s)...`);
+        logger.info("Upload images galerie", "useProductGallery", {
+          productId,
+          filesCount: valid.length,
+          fileNames: valid.map(f => f.name)
+        });
 
         const uploadedUrls = await uploadGalleryImages(productId, valid);
         const newImages = [...images, ...uploadedUrls];
@@ -175,12 +158,20 @@ export function useProductGallery(
         setImages(newImages);
         onImagesChange?.(newImages);
 
-        console.log('✅ Images uploadées:', uploadedUrls);
+        logger.info("Images uploadées avec succès", "useProductGallery", {
+          productId,
+          uploadedCount: uploadedUrls.length,
+          totalImages: newImages.length
+        });
+        
         toast.success(`${uploadedUrls.length} image(s) ajoutée(s)`);
       } catch (err: unknown) {
         const errorMessage = getErrorMessage(err);
+        logger.error("Erreur upload images", "useProductGallery", err, {
+          productId,
+          filesCount: valid.length
+        });
         setError(errorMessage);
-        console.error('❌ Erreur upload:', errorMessage);
         toast.error(`Erreur upload: ${errorMessage}`);
       } finally {
         setIsLoading(false);
@@ -189,9 +180,7 @@ export function useProductGallery(
     [productId, images, onImagesChange, validateFiles]
   );
 
-  /**
-   * ✅ Suppression d'une image
-   */
+  // Suppression d'une image 
   const removeImage = useCallback(
     async (imageUrl: string): Promise<void> => {
       // Confirmation
@@ -203,7 +192,10 @@ export function useProductGallery(
       setError(null);
 
       try {
-        console.log('🗑️ Suppression image:', imageUrl);
+        logger.info("Suppression image galerie", "useProductGallery", {
+          productId,
+          imageUrlLength: imageUrl.length
+        });
 
         await removeGalleryImage(productId, imageUrl);
         const newImages = images.filter((img) => img !== imageUrl);
@@ -211,12 +203,19 @@ export function useProductGallery(
         setImages(newImages);
         onImagesChange?.(newImages);
 
-        console.log('✅ Image supprimée');
+        logger.info("Image supprimée avec succès", "useProductGallery", {
+          productId,
+          remainingImages: newImages.length
+        });
+        
         toast.success('Image supprimée');
       } catch (err: unknown) {
         const errorMessage = getErrorMessage(err);
+        logger.error("Erreur suppression image", "useProductGallery", err, {
+          productId,
+          imageUrlLength: imageUrl.length
+        });
         setError(errorMessage);
-        console.error('❌ Erreur suppression:', errorMessage);
         toast.error(`Erreur suppression: ${errorMessage}`);
       } finally {
         setIsLoading(false);
@@ -225,13 +224,12 @@ export function useProductGallery(
     [productId, images, onImagesChange]
   );
 
-  /**
-   * ✅ Réorganisation des images
-   */
+  // Réorganisation des images
   const reorderImages = useCallback(
     async (newOrder: string[]): Promise<void> => {
       // Éviter les appels inutiles
       if (JSON.stringify(newOrder) === JSON.stringify(images)) {
+        logger.debug("Aucun changement d'ordre détecté", "useProductGallery", { productId });
         return;
       }
 
@@ -239,19 +237,29 @@ export function useProductGallery(
       setError(null);
 
       try {
-        console.log('🔄 Réorganisation galerie');
+        logger.info("Réorganisation galerie", "useProductGallery", {
+          productId,
+          imagesCount: newOrder.length
+        });
 
         await reorderGallery(productId, newOrder);
 
         setImages(newOrder);
         onImagesChange?.(newOrder);
 
-        console.log('✅ Galerie réorganisée');
+        logger.info("Galerie réorganisée avec succès", "useProductGallery", {
+          productId,
+          imagesCount: newOrder.length
+        });
+        
         toast.success('Galerie réorganisée');
       } catch (err: unknown) {
         const errorMessage = getErrorMessage(err);
+        logger.error("Erreur réorganisation galerie", "useProductGallery", err, {
+          productId,
+          imagesCount: newOrder.length
+        });
         setError(errorMessage);
-        console.error('❌ Erreur réorganisation:', errorMessage);
         toast.error(`Erreur réorganisation: ${errorMessage}`);
       } finally {
         setIsLoading(false);
@@ -260,9 +268,7 @@ export function useProductGallery(
     [productId, images, onImagesChange]
   );
 
-  /**
-   * ✅ Effacer l'erreur
-   */
+  //Effacer l'erreur
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -285,46 +291,5 @@ export function useProductGallery(
     validateFiles
   };
 }
-
-/**
- * ✅ EXEMPLE D'UTILISATION:
- * 
- * const ProductGalleryManager = ({ productId }: { productId: number }) => {
- *   const {
- *     images,
- *     isLoading,
- *     isDragging,
- *     error,
- *     uploadImages,
- *     removeImage,
- *     reorderImages,
- *     setIsDragging,
- *     clearError
- *   } = useProductGallery({
- *     productId,
- *     maxFileSize: 5 * 1024 * 1024, // 5MB
- *     maxFiles: 10,
- *     onImagesChange: (images) => {
- *       console.log('Galerie mise à jour:', images);
- *     }
- *   });
- * 
- *   return (
- *     <div>
- *       <ImageUploadMultiple 
- *         onUpload={uploadImages} 
- *         disabled={isLoading}
- *       />
- *       <ImageGallery 
- *         images={images}
- *         onReorder={reorderImages}
- *         onRemove={removeImage}
- *         isLoading={isLoading}
- *       />
- *       {error && <ErrorMessage message={error} onClose={clearError} />}
- *     </div>
- *   );
- * };
- */
 
 export default useProductGallery;
