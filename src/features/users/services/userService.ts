@@ -1,6 +1,6 @@
 import apiClient from '../../../shared/api/apiClient';
-import { getErrorMessage, type ApiError} from '../../../shared/types/errors.types';
-import type {PaginatedUsersResponse, RoleType,UserFilters} from '../types/users.types';
+import { getErrorMessage, logger, type ApiError } from '../../../shared/types/errors.types';
+import type { PaginatedUsersResponse, RoleType, UserFilters } from '../types/users.types';
 
 // INTERFACE POUR LA RÉPONSE CSRF
 interface CsrfTokenResponse {
@@ -21,6 +21,8 @@ async function ensureCsrfToken(): Promise<void> {
     const hasValidCsrf = cookies.includes('XSRF-TOKEN=') && !cookies.includes('XSRF-TOKEN=;') && !cookies.includes('XSRF-TOKEN=deleted');
     
     if (!hasValidCsrf) {
+      logger.info("Rafraîchissement CSRF token", "UserService");
+      
       try {
         await apiClient.get<CsrfTokenResponse>('/csrf-token', {
           headers: {
@@ -38,16 +40,17 @@ async function ensureCsrfToken(): Promise<void> {
         });
       }
     }
-  } catch {
-    // Silently continue
+  } catch (error) {
+    logger.debug("Échec rafraîchissement CSRF", "UserService", {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }
 
 // FONCTION AVEC RETRY INTELLIGENT
-
 async function executeWithCsrfRetry<T>(
   operation: () => Promise<T>,
-  _operationName: string,
+  operationName: string,
   maxRetries: number = 2
 ): Promise<T> {
   let retryCount = 0;
@@ -76,10 +79,31 @@ async function executeWithCsrfRetry<T>(
       if (isCsrfError && retryCount < maxRetries) {
         retryCount++;
         const delay = retryCount * 500;
-        await new Promise(resolve => setTimeout(resolve, delay));
         
+        logger.warn("Tentative retry après erreur CSRF", "UserService", {
+          operationName,
+          retryCount,
+          delay,
+          error: errorMessage
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
         return execute();
       }
+      
+      const errorMetadata = error instanceof Error ? { 
+        errorName: error.name,
+        errorMessage: error.message 
+      } : { 
+        errorType: typeof error 
+      };
+      
+      logger.error("Échec opération après retry", "UserService", {
+        operationName,
+        retryCount,
+        isCsrfError,
+        ...errorMetadata
+      });
       
       throw error;
     }
@@ -89,7 +113,6 @@ async function executeWithCsrfRetry<T>(
 }
 
 // LOADER
-
 export async function usersLoader({ 
   request 
 }: { 
@@ -104,9 +127,26 @@ export async function usersLoader({
       params: { page, size }
     });
     
+    logger.debug("Chargement utilisateurs réussi", "UserService", {
+      page,
+      size,
+      usersCount: response.data.content?.length || 0
+    });
+    
     return response.data;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error: unknown) {
+    const errorMetadata = error instanceof Error ? { 
+      errorName: error.name,
+      errorMessage: error.message.substring(0, 100) 
+    } : { 
+      errorType: typeof error 
+    };
+    
+    logger.error("Erreur chargement utilisateurs", "UserService", {
+      page,
+      size,
+      ...errorMetadata
+    });
     
     return {
       content: [],
@@ -121,7 +161,6 @@ export async function usersLoader({
 }
 
 // API CALLS AVEC GESTION CSRF ROBUSTE
-
 export async function removeRole(
   userId: number,
   roleType: RoleType
@@ -130,8 +169,13 @@ export async function removeRole(
     async () => {
       await apiClient.delete(`/admin/users/${userId}/roles/${roleType}`);
       await new Promise(resolve => setTimeout(resolve, 300));
+      
+      logger.info("Rôle supprimé avec succès", "UserService", {
+        userId,
+        roleType
+      });
     },
-    `Remove role ${roleType} from user ${userId}`,
+    `removeRole-${userId}-${roleType}`,
     2
   );
 }
@@ -145,9 +189,18 @@ export async function assignRole(
       const response = await apiClient.post<{ message: string }>(
         `/admin/users/${userId}/roles/${roleType}`
       );
-      return response.data.message || 'Rôle assigné avec succès';
+      
+      const message = response.data.message || 'Rôle assigné avec succès';
+      
+      logger.info("Rôle assigné avec succès", "UserService", {
+        userId,
+        roleType,
+        serverMessage: message
+      });
+      
+      return message;
     },
-    `Assign role ${roleType} to user ${userId}`,
+    `assignRole-${userId}-${roleType}`,
     2
   );
 }
@@ -158,15 +211,20 @@ export async function promoteUser(userId: number): Promise<string> {
       const response = await apiClient.post<{ message: string }>(
         `/admin/users/${userId}/promote`
       );
+      
+      logger.info("Utilisateur promu avec succès", "UserService", {
+        userId,
+        serverMessage: response.data.message
+      });
+      
       return response.data.message;
     },
-    `Promote user ${userId}`,
+    `promoteUser-${userId}`,
     2
   );
 }
 
 // AUTRES FONCTIONS
-
 export async function getAllUsers(
   filters?: UserFilters
 ): Promise<PaginatedUsersResponse> {
@@ -175,12 +233,35 @@ export async function getAllUsers(
     size: filters?.size || 20
   };
 
-  const response = await apiClient.get<PaginatedUsersResponse>(
-    '/admin/users',
-    { params }
-  );
+  try {
+    const response = await apiClient.get<PaginatedUsersResponse>(
+      '/admin/users',
+      { params }
+    );
 
-  return response.data;
+    logger.debug("Récupération tous utilisateurs", "UserService", {
+      page: params.page,
+      size: params.size,
+      usersCount: response.data.content?.length || 0
+    });
+
+    return response.data;
+  } catch (error: unknown) {
+    // ✅ CORRECTION : 3 arguments maximum
+    const errorMetadata = error instanceof Error ? { 
+      errorName: error.name,
+      errorMessage: error.message.substring(0, 100) 
+    } : { 
+      errorType: typeof error 
+    };
+    
+    logger.error("Erreur récupération tous utilisateurs", "UserService", {
+      page: params.page,
+      size: params.size,
+      ...errorMetadata
+    });
+    throw error;
+  }
 }
 
 export function getAvailableRoles(currentRoles: string[]): RoleType[] {
@@ -189,17 +270,45 @@ export function getAvailableRoles(currentRoles: string[]): RoleType[] {
     'ROLE_MANAGER', 
     'ROLE_ADMIN'
   ];
-  return allRoles.filter(role => !currentRoles.includes(role));
+  
+  const availableRoles = allRoles.filter(role => !currentRoles.includes(role));
+  
+  logger.debug("Rôles disponibles calculés", "UserService", {
+    currentRolesCount: currentRoles.length,
+    availableRolesCount: availableRoles.length
+  });
+  
+  return availableRoles;
 }
 
-// FONCTIONS DE DEBUG (conservées mais sans logs par défaut)
-
+// FONCTIONS DE DEBUG
 export function debugCsrfStatus(): void {
-  // Fonction conservée pour le debug si nécessaire
+  const cookies = document.cookie;
+  const hasCsrf = cookies.includes('XSRF-TOKEN=');
+  
+  logger.debug("Statut CSRF", "UserService", {
+    hasCsrfToken: hasCsrf,
+    cookiesCount: cookies.split(';').length
+  });
 }
 
 export async function testCsrfEndpoint(): Promise<void> {
-  // Fonction conservée pour le debug si nécessaire
+  try {
+    await apiClient.get('/csrf-token');
+    logger.info("Test CSRF endpoint réussi", "UserService");
+  } catch (error: unknown) {
+    const errorMetadata = error instanceof Error ? { 
+      errorName: error.name,
+      errorMessage: error.message 
+    } : { 
+      errorType: typeof error 
+    };
+    
+    logger.error("Test CSRF endpoint échoué", "UserService", {
+      ...errorMetadata
+    });
+    throw error;
+  }
 }
 
 const userService = {
