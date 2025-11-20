@@ -2,98 +2,118 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import {
-  createBrowserRouter,
-  RouterProvider,
-  createRoutesFromElements,
-  Route,
-} from "react-router-dom";
-import Home from './components/Home.tsx';
-import About from './components/About.tsx';
-import Contact from './components/Contact.tsx';
-import Login from './components/Login.tsx';
-import { contactAction } from './actions/contactAction.ts';
-import ErrorPage from './components/ErrorPage.tsx';
+import {createBrowserRouter,RouterProvider,createRoutesFromElements,Route,} from "react-router-dom";
+import { useEffect } from 'react';
+import apiClient from './shared/api/apiClient';
+import Home from './pages/Home.tsx';
+import About from './pages/About.tsx';
+import Login from './features/auth/pages/Login.tsx';
+import ErrorPage from './pages/ErrorPage.tsx';
 import { Bounce, ToastContainer } from 'react-toastify';
-import Cart from './components/Cart.tsx';
-import { productsLoader } from './loaders/productsLoader.ts';
-import ProductDetail from './components/ProductDetail.tsx';
-import { loginAction } from './actions/loginAction.ts';
-import CheckoutForm from './components/CheckoutForm.tsx';
-import ProtectedRoute from './components/ProtectedRoute.tsx';
-import Orders from './components/Orders.tsx';
-import AdminOrders from './components/admin/AdminOrders.tsx';
-import Messages from './components/admin/Messages.tsx';
-import Profile from './components/Profile.tsx';
-import Register from './components/Register.tsx';
-import { registerAction } from './actions/registerAction.ts';
-import { profileLoader } from './loaders/profileLoader.ts';
-import { profileAction } from './actions/profileAction.ts';
+import Cart from './features/cart/pages/Cart.tsx';
+import CheckoutForm from './features/payment/pages/CheckoutForm.tsx';
+import ProtectedRoute from './features/auth/components/ProtectedRoute.tsx';
+import Orders from './features/orders/pages/Orders.tsx';
+import AdminOrders from './features/orders/pages/AdminOrders.tsx';
+import Profile from './features/profile/pages/Profile.tsx';
+import Register from './features/auth/pages/Register.tsx';
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
-import OrderSuccess from './components/OrderSuccess.tsx';
-import { productDetailLoader } from './loaders/productDetailLoader.ts';
-import { ordersLoader } from './loaders/ordersLoader.ts';
-import { adminOrdersLoader } from './loaders/adminOrdersLoader.ts';
-import { messagesLoader } from './loaders/messagesLoader.ts';
-import { contactsLoader } from './loaders/contactsLoader.ts';
+import OrderSuccess from './features/orders/pages/OrderSuccess.tsx';
 import { Provider } from 'react-redux';
-import { store } from './store/index.ts';
+import { PersistGate } from 'redux-persist/integration/react';
+import Users from './features/users/pages/Users.tsx';
+import ProductUpload from './features/products/pages/admin/ProductUpload.tsx';
+import AdminProducts from './features/products/pages/admin/AdminProducts.tsx';
+import EditProduct from './features/products/pages/admin/EditProduct.tsx';
+import { store, persistor } from './shared/store/store.ts'; 
+import ContactPage from './features/contacts/pages/ContactPage.tsx';
+import { contactAction, contactInfoLoader, messagesLoader } from './features/contacts/services/contactService.ts';
+import AdminMessagesPage from './features/contacts/pages/ AdminMessagesPage.tsx';
+import { adminOrdersLoader, ordersLoader } from './features/orders/services/orderService.ts';
+import { usersLoader } from './features/users/services/userService.ts';
+import { profileAction, profileLoader } from './features/profile/services/profileService.ts';
+import ProductGalleryPage from './features/products/pages/admin/ProductGalleryPage.tsx';
+import ProductDetail from './features/products/pages/public/ProductDetail.tsx';
+import { productLoader } from './features/products/loaders/productLoader.ts';
+import { logger } from './shared/types/errors.types.ts';
 
+// COMPOSANT WRAPPER POUR INITIALISATION CSRF token
+// eslint-disable-next-line react-refresh/only-export-components
+function AppWrapper() {
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        logger.info('Initializing CSRF token...', 'AppWrapper');
+        await apiClient.get('/csrf-token');
+        logger.info('CSRF token initialized successfully', 'AppWrapper');
+      } catch (error) {
+        logger.error('CSRF initialization failed', 'AppWrapper', error);
+        // Retry après 2 secondes en cas d'échec
+        setTimeout(() => initializeApp(), 2000);
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  return <App />;
+}
 
 const stripePromise = loadStripe(
-  "pk_test_51OhtIUDWbglQHB6CdSDFxtaP6MtNj16Ul1mpyARfmYpFWv9cWn7VXf72D4EUSnkBDzIoBoFhXGB45954dzle1M6g00fni1jV40"
-);
-
+  "pk_test_51OhtIUDWbglQHB6CdSDFxtaP6MtNj16Ul1mpyARfmYpFWv9cWn7VXf72D4EUSnkBDzIoBoFhXGB45954dzle1M6g00fni1jV40");
 
 // Cette approche utilise la syntaxe JSX pour définir les routes (alternative à l'objet JavaScript)
 const routeDefinitions = createRoutesFromElements(
   
-  <Route path="/" element={<App />} errorElement={<ErrorPage />}>
+  <Route path="/" element={<AppWrapper />} errorElement={<ErrorPage />}>
+    <Route index element={<Home />} />
 
-    <Route index element={<Home />} loader={productsLoader} />
-    <Route path="/home" element={<Home />} loader={productsLoader} />
+    <Route path="/home" element={<Home />} />
     <Route path="/about" element={<About />} />
-    <Route path="/contact" element={<Contact />} action={contactAction} loader={contactsLoader} />
-    
-    <Route path="/login" element={<Login />} action={loginAction} />
-    <Route path="/register" element={<Register />} action={registerAction} />
-    <Route path="/cart" element={<Cart />} />
-    <Route path="/products/:productId" element={<ProductDetail />} 
-    loader={productDetailLoader}  
+    <Route path="/contact" element={<ContactPage />} action={contactAction}loader={contactInfoLoader}/>
+    <Route 
+      path="/products/:productId" element={<ProductDetail />} loader={productLoader}
     />
+    
+    <Route path="/login" element={<Login />} />
+    <Route path="/register" element={<Register />} />
+    <Route path="/cart" element={<Cart />} />
 
-    <Route
-        path="/profile"
-        element={<Profile />}
-        loader={profileLoader}
-        action={profileAction}
-        shouldRevalidate={({ actionResult }) => {
+    <Route path="/profile" element={<Profile />}loader={profileLoader}action={profileAction}
+            shouldRevalidate={({ actionResult }) => {
           return !actionResult?.success;
         }}
       />
-
+      
     <Route element={<ProtectedRoute />}>
       <Route path="/checkout" element={<CheckoutForm />} />
       <Route path="/order-success" element={<OrderSuccess />} />
       <Route path="/orders" element={<Orders />} loader={ordersLoader} />
+
       <Route path="/admin/orders"element={<AdminOrders />}loader={adminOrdersLoader}/>
-      <Route path="/admin/messages"element={<Messages />} loader={messagesLoader}/>
+      <Route path="/admin/messages" element={<AdminMessagesPage />} loader={messagesLoader}/>
+      <Route path="/admin/users" element={<Users />} loader={usersLoader}/>
+      <Route path="/admin/products" element={<AdminProducts />} />
+      <Route path="/admin/products/edit/:productId" element={<EditProduct />} /> 
+      <Route path="/admin/products/upload" element={<ProductUpload />} />
+      <Route path="/admin/products/:productId/gallery" element={<ProductGalleryPage />} />
     </Route>
   </Route>
 );
-
 
 const appRouter = createBrowserRouter(routeDefinitions);
 
 createRoot(document.getElementById('root')!).render(
 
   <StrictMode>
-
     <Elements stripe={stripePromise}>
 
       <Provider store={store}>
-        <RouterProvider router={appRouter} />
+        {/*PersistGate pour éviter la déconnexion au refresh */}
+        <PersistGate loading={null} persistor={persistor}>
+          <RouterProvider router={appRouter} />
+        </PersistGate>
       </Provider>
 
       <ToastContainer
