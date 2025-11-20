@@ -1,71 +1,64 @@
 import { CardNumberElement } from "@stripe/react-stripe-js";
 import type { PaymentIntent } from "@stripe/stripe-js";
 import apiClient from '../../../shared/api/apiClient';
-import { getErrorMessage, handleApiError } from '../../../shared/types/errors.types';
+import { handleApiError, logger } from '../../../shared/types/errors.types';
 import { userToBillingDetails } from "../../../shared/utils/stripeHelpers";
-import type { CartItem } from "../../../shared/types/cart";
 import type { Address, User } from "../../auth/types/auth.types";
 import type { 
+  CartItem, 
   CreateOrderResult, 
   OrderRequest, 
   PaymentIntentResponse, 
   ProcessPaymentParams, 
   ProcessPaymentResult 
-} from "../types/payment.pytes";
+} from "../../payment/types/payment.pytes"; 
 
 
 // API CALLS - PAYMENT INTENT
-//Créer un Payment Intent Stripe
 export async function createPaymentIntent(amountInCents: number, currency: string = 'eur'): Promise<PaymentIntentResponse> {
   try {
-    console.log('💳 Creating payment intent:', { amountInCents, currency });
+    logger.debug("Création du payment intent", "paymentService", { amountInCents, currency });
 
     const response = await apiClient.post<PaymentIntentResponse>(
       '/payment/create-payment-intent',
       {
-        amount: amountInCents, // ✅ Déjà en centimes
+        amount: amountInCents,
         currency: currency.toLowerCase()
       }
     );
 
-    console.log('✅ Payment intent created:', response.data.paymentIntentId);
+    logger.debug("Payment intent créé avec succès", "paymentService", { 
+      paymentIntentId: response.data.paymentIntentId,
+      amount: amountInCents
+    });
     return response.data;
 
   } catch (error: unknown) {
-    console.error('❌ Error creating payment intent:', getErrorMessage(error));
+    logger.error("Erreur lors de la création du payment intent", "paymentService", error, { amountInCents, currency });
     throw error;
   }
 }
 
-// Confirmer un paiement (optionnel)
 export async function confirmPayment(paymentIntentId: string): Promise<void> {
   try {
     await apiClient.post(`/payment/${paymentIntentId}/confirm`);
-    console.log('✅ Payment confirmed on server');
+    logger.debug("Paiement confirmé sur le serveur", "paymentService", { paymentIntentId });
   } catch (error: unknown) {
-    console.error('❌ Error confirming payment:', getErrorMessage(error));
+    logger.error("Erreur lors de la confirmation du paiement", "paymentService", error, { paymentIntentId });
     throw error;
   }
 }
 
-//Annuler un paiement
 export async function cancelPayment(paymentIntentId: string): Promise<void> {
   try {
     await apiClient.post(`/payment/${paymentIntentId}/cancel`);
-    console.log('Payment cancelled');
+    logger.debug("Paiement annulé", "paymentService", { paymentIntentId });
   } catch (error: unknown) {
-    console.error('Error cancelling payment:', getErrorMessage(error));
+    logger.error("Erreur lors de l'annulation du paiement", "paymentService", error, { paymentIntentId });
     throw error;
   }
 }
 
-// ============================================
-// ORCHESTRATION PAIEMENT
-// ============================================
-
-/**
- * Traiter le paiement complet
- */
 export async function processPayment({ 
   stripe, 
   elements, 
@@ -74,52 +67,81 @@ export async function processPayment({
   totalPrice 
 }: ProcessPaymentParams): Promise<ProcessPaymentResult> {
   
-  // 1️⃣ VALIDATIONS
   if (!stripe || !elements) {
+    logger.warn("Stripe non chargé", "paymentService");
     return { success: false, error: "Stripe n'est pas encore chargé." };
   }
 
   if (!user) {
+    logger.warn("Utilisateur manquant", "paymentService");
     return { success: false, error: "Informations utilisateur manquantes." };
   }
 
   if (!user.address) {
+    logger.warn("Adresse manquante", "paymentService", { userId: user.id });
     return { 
       success: false, 
       error: "Adresse de livraison requise. Veuillez compléter votre profil." 
     };
   }
 
-  if (cart.length === 0) {
+  // Vérification détaillée du panier
+  logger.debug("Vérification du panier", "paymentService", {
+    cartLength: cart?.length,
+    cartItems: cart,
+    totalPrice
+  });
+
+  if (!cart || cart.length === 0) {
+    logger.warn("Panier vide détecté", "paymentService", {
+      cartIsArray: Array.isArray(cart),
+      cartType: typeof cart,
+      cartValue: cart
+    });
     return { success: false, error: "Le panier est vide." };
   }
 
   try {
-    // 2️⃣ CRÉER PAYMENT INTENT
+    // RÉER PAYMENT INTENT
     const amountInCents = Math.round(totalPrice * 100);
     
-    const paymentIntentResponse = await createPaymentIntent(
+    logger.info("Création du payment intent", "paymentService", {
       amountInCents,
-      'eur'
-    );
+      totalPriceEuros: totalPrice,
+      currency: 'eur',
+      cartItemsCount: cart.length,
+      cartItems: cart.map((item: CartItem) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price
+      }))
+    });
 
+    const paymentIntentResponse = await createPaymentIntent(amountInCents, 'eur');
     const { clientSecret } = paymentIntentResponse;
 
     if (!clientSecret) {
+      logger.error("Clé secrète manquante", "paymentService", null, { paymentIntentResponse });
       return { success: false, error: "Clé secrète manquante du serveur." };
     }
 
-    // 3️⃣ RÉCUPÉRER ÉLÉMENT CARTE
+    // RÉCUPÉRER ÉLÉMENT CARTE
     const cardNumberElement = elements.getElement(CardNumberElement);
     if (!cardNumberElement) {
+      logger.error("Élément carte bancaire introuvable", "paymentService");
       return { success: false, error: "Élément carte bancaire introuvable." };
     }
 
-    // 4️⃣ PRÉPARER BILLING DETAILS
+    // PRÉPARER BILLING DETAILS
     const userWithAddress = user as User & { address: Address };
     const billingDetails = userToBillingDetails(userWithAddress);
 
-    // 5️⃣ CONFIRMER PAIEMENT STRIPE
+    logger.debug("Détails de facturation préparés", "paymentService", {
+      hasBillingDetails: !!billingDetails,
+      clientSecretLength: clientSecret?.length
+    });
+
+    // CONFIRMER PAIEMENT STRIPE
     const { error, paymentIntent } = await stripe.confirmCardPayment(
       clientSecret,
       {
@@ -131,9 +153,13 @@ export async function processPayment({
       }
     );
 
-    // 6️⃣ GÉRER RÉSULTAT
+    // GÉRER RÉSULTAT
     if (error) {
-      console.error('❌ Stripe payment error:', error);
+      logger.error("Erreur de paiement Stripe", "paymentService", error, {
+        errorType: error.type,
+        errorCode: error.code,
+        cartItemsCount: cart.length
+      });
       return { 
         success: false, 
         error: error.message || "Échec du paiement. Veuillez réessayer." 
@@ -141,48 +167,54 @@ export async function processPayment({
     }
 
     if (paymentIntent && paymentIntent.status === "succeeded") {
-      console.log('✅ Payment succeeded:', paymentIntent.id);
+      logger.info("Paiement réussi", "paymentService", {
+        paymentIntentId: paymentIntent.id,
+        amount: paymentIntent.amount,
+        status: paymentIntent.status,
+        cartItemsCount: cart.length
+      });
       return { success: true, paymentIntent };
     }
 
+    logger.warn("Paiement non abouti", "paymentService", { 
+      paymentIntentStatus: paymentIntent?.status,
+      cartItemsCount: cart.length
+    });
     return { success: false, error: "Le paiement n'a pas abouti." };
 
   } catch (error: unknown) {
-    console.error("❌ Error processing payment:", error);
+    logger.error("Erreur lors du traitement du paiement", "paymentService", error, {
+      cartItemsCount: cart.length,
+      totalPrice,
+      cartItems: cart
+    });
     
     const errorInfo = handleApiError(error);
     
     return { 
       success: false, 
       error: errorInfo.message,
-      
     };
   }
 }
 
-// ============================================
 // CRÉATION COMMANDE
-// ============================================
-
-/**
- * Créer une commande après paiement réussi
- */
 export async function createOrder(
   totalPrice: number, 
   paymentIntent: PaymentIntent, 
   cart: CartItem[]
 ): Promise<CreateOrderResult> {
   try {
-    console.log('📦 Creating order:', {
+    logger.info("Création de commande", "paymentService", {
       totalPrice,
       paymentIntentId: paymentIntent.id,
-      itemsCount: cart.length
+      itemsCount: cart.length,
+      paymentStatus: paymentIntent.status
     });
 
-    // ✅ CORRECTION: Utiliser paymentIntentId (cohérent avec OrderRequest)
     const orderData: OrderRequest = {
       totalPrice: totalPrice,
-      paymentIntentId: paymentIntent.id,    // ✅ Correct
+      paymentIntentId: paymentIntent.id,
       paymentStatus: paymentIntent.status,
       items: cart.map((item: CartItem) => ({
         productId: item.productId,
@@ -193,7 +225,10 @@ export async function createOrder(
 
     const response = await apiClient.post<{ orderId: number }>("/orders", orderData);
     
-    console.log('✅ Order created:', response.data.orderId);
+    logger.info("Commande créée avec succès", "paymentService", {
+      orderId: response.data.orderId,
+      paymentIntentId: paymentIntent.id
+    });
     
     return { 
       success: true, 
@@ -201,51 +236,28 @@ export async function createOrder(
     };
 
   } catch (error: unknown) {
-    console.error("❌ Error creating order:", error);
+    logger.error("Erreur lors de la création de commande", "paymentService", error, {
+      totalPrice,
+      paymentIntentId: paymentIntent.id,
+      itemsCount: cart.length
+    });
     
     const errorInfo = handleApiError(error);
     
     return { 
       success: false, 
       error: errorInfo.message,
-     
     };
   }
 }
 
-// ============================================
 // EXPORT PAR DÉFAUT
-// ============================================
-
 const paymentService = {
-  // API
   createPaymentIntent,
   confirmPayment,
   cancelPayment,
-  
-  // Orchestration
   processPayment,
   createOrder
 };
 
 export default paymentService;
-
-/**
- * ✅ COHÉRENCE FRONTEND ↔ BACKEND:
- * 
- * Frontend envoie:
- * {
- *   totalPrice: 99.99,
- *   paymentIntentId: "pi_3ABC...",  ← Correct !
- *   paymentStatus: "succeeded",
- *   items: [...]
- * }
- * 
- * Backend attend (OrderRequestDto):
- * {
- *   totalPrice: BigDecimal,
- *   paymentIntentId: String,  ← Correspond !
- *   paymentStatus: String,
- *   items: List<OrderItemDto>
- * }
- */
