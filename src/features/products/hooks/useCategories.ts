@@ -1,10 +1,8 @@
-// src/hooks/useCategories.ts
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../../shared/api/apiClient';
 import type { Category } from '../types/product.types';
 import { toast } from "react-toastify";
-import { getErrorMessage } from '../../../shared/types/errors.types';
-
+import { getErrorMessage, logger } from '../../../shared/types/errors.types';
 
 export const useCategories = () => {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -16,26 +14,27 @@ export const useCategories = () => {
       setLoading(true);
       setError(null);
       
-      console.log("🔄 Chargement des catégories...");
+      logger.debug("Chargement des catégories...", "useCategories");
       
-      // ✅CORRECTION : Typage correct pour ApiResponse
       const response = await apiClient.get<{success: boolean;message?: string;data: Category[];}>("/categories");
       
-      // ✅ Déballer la réponse (gérer les 2 formats)
       const categoriesData = response.data.data || response.data;
       
-      // ✅ VALIDATION ROBUSTE
       if (Array.isArray(categoriesData)) {
-        console.log("✅ Catégories chargées:", categoriesData.length, "catégories");
+        logger.debug("Catégories chargées avec succès", "useCategories", { 
+          categoriesCount: categoriesData.length 
+        });
         setCategories(categoriesData);
       } else {
-        console.warn("⚠️ Format de réponse invalide:", response.data);
+        logger.warn("Format de réponse invalide", "useCategories", { 
+          responseData: response.data 
+        });
         setCategories([]);
       }
       
     } catch (error: unknown) {
-      console.error("❌ Erreur chargement catégories:", error);
       const errorMessage = getErrorMessage(error);
+      logger.error("Erreur lors du chargement des catégories", "useCategories", error);
       setError(errorMessage);
       toast.error(`Erreur catégories: ${errorMessage}`);
       setCategories([]);

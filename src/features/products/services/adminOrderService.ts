@@ -1,16 +1,11 @@
 /**
- * VERSION 1.0 - PRODUCTION READY
- * 
  * @location src/features/orders/services/adminOrderService.ts
  */
 
 import apiClient from '../../../shared/api/apiClient';
-import { getErrorMessage } from '../../../shared/types/errors.types';
+import { getErrorMessage, logger } from '../../../shared/types/errors.types';
 
-// ============================================
 // TYPES
-// ============================================
-
 export type OrderStatus = 
   | "PENDING" 
   | "CONFIRMED" 
@@ -72,13 +67,9 @@ export interface OrderFilters {
   endDate?: string;
 }
 
-// ============================================
 // API METHODS
-// ============================================
 
-/**
- * ✅ Récupère toutes les commandes avec filtres
- */
+// Récupère toutes les commandes avec filtres
 export async function getAllOrders(
   filters: OrderFilters
 ): Promise<PaginatedOrdersResponse> {
@@ -93,157 +84,193 @@ export async function getAllOrders(
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
 
-    console.log('🔄 Fetching orders with filters:', params);
+    logger.debug("Récupération commandes avec filtres", "AdminOrderService", {
+      page: filters.page,
+      size: filters.size,
+      hasStatus: !!filters.status,
+      hasQuery: !!filters.query,
+      hasDateRange: !!(filters.startDate || filters.endDate)
+    });
 
     const response = await apiClient.get<PaginatedOrdersResponse>(
       '/admin/orders',
       { params }
     );
 
-    console.log('✅ Orders fetched:', response.data.content.length);
+    logger.debug("Commandes récupérées avec succès", "AdminOrderService", {
+      totalElements: response.data.totalElements,
+      totalPages: response.data.totalPages,
+      currentPage: response.data.number,
+      contentLength: response.data.content?.length || 0
+    });
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error('❌ Error fetching orders:', getErrorMessage(error));
+    logger.error("Erreur récupération commandes", "AdminOrderService", error, {
+      page: filters.page,
+      status: filters.status
+    });
     throw new Error(getErrorMessage(error));
   }
 }
 
-/**
- * ✅ Récupère une commande par ID
- */
+// Récupère une commande par ID
 export async function getOrderById(orderId: number): Promise<Order> {
   try {
+    logger.debug("Récupération commande par ID", "AdminOrderService", { orderId });
+    
     const response = await apiClient.get<Order>(`/admin/orders/${orderId}`);
+    
+    logger.debug("Commande récupérée avec succès", "AdminOrderService", {
+      orderId,
+      orderNumber: response.data.orderNumber,
+      status: response.data.status
+    });
+
     return response.data;
 
   } catch (error: unknown) {
-    console.error(`❌ Error fetching order ${orderId}:`, getErrorMessage(error));
+    logger.error("Erreur récupération commande", "AdminOrderService", error, { orderId });
     throw new Error(getErrorMessage(error));
   }
 }
 
-/**
- * ✅ Confirmer une commande (PENDING → CONFIRMED)
- */
+// Confirmer une commande (PENDING → CONFIRMED)
 export async function confirmOrder(orderId: number): Promise<Order> {
   try {
-    console.log(`✅ Confirming order ${orderId}`);
+    logger.info("Confirmation commande", "AdminOrderService", { orderId });
 
     const response = await apiClient.patch<Order>(
       `/admin/orders/${orderId}/confirm`
     );
 
-    console.log('✅ Order confirmed');
+    logger.info("Commande confirmée avec succès", "AdminOrderService", {
+      orderId,
+      newStatus: response.data.status
+    });
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error(`❌ Error confirming order ${orderId}:`, getErrorMessage(error));
+    logger.error("Erreur confirmation commande", "AdminOrderService", error, { orderId });
     throw new Error(getErrorMessage(error));
   }
 }
 
-/**
- * ✅ Annuler une commande
- */
+// Annuler une commande
 export async function cancelOrder(
   orderId: number,
   reason?: string
 ): Promise<Order> {
   try {
-    console.log(`❌ Cancelling order ${orderId}`, reason ? `Reason: ${reason}` : '');
+    logger.info("Annulation commande", "AdminOrderService", {
+      orderId,
+      hasReason: !!reason
+    });
 
     const response = await apiClient.patch<Order>(
       `/admin/orders/${orderId}/cancel`,
       { reason }
     );
 
-    console.log('✅ Order cancelled');
+    logger.info("Commande annulée avec succès", "AdminOrderService", {
+      orderId,
+      newStatus: response.data.status
+    });
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error(`❌ Error cancelling order ${orderId}:`, getErrorMessage(error));
+    logger.error("Erreur annulation commande", "AdminOrderService", error, { orderId });
     throw new Error(getErrorMessage(error));
   }
 }
 
-/**
- * ✅ Changer le statut d'une commande
- */
+// Changer le statut d'une commande
 export async function updateOrderStatus(
   orderId: number,
   newStatus: OrderStatus
 ): Promise<Order> {
   try {
-    console.log(`🔄 Updating order ${orderId} status to ${newStatus}`);
+    logger.info("Mise à jour statut commande", "AdminOrderService", {
+      orderId,
+      newStatus
+    });
 
     const response = await apiClient.patch<Order>(
       `/admin/orders/${orderId}/status`,
       { status: newStatus }
     );
 
-    console.log('✅ Order status updated');
+    logger.info("Statut commande mis à jour avec succès", "AdminOrderService", {
+      orderId,
+      newStatus: response.data.status
+    });
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error(`❌ Error updating order status:`, getErrorMessage(error));
+    logger.error("Erreur mise à jour statut commande", "AdminOrderService", error, {
+      orderId,
+      newStatus
+    });
     throw new Error(getErrorMessage(error));
   }
 }
 
-/**
- * ✅ Marquer comme expédiée avec numéro de suivi
- */
+//  Marquer comme expédiée avec numéro de suivi
 export async function shipOrder(
   orderId: number,
   trackingNumber?: string
 ): Promise<Order> {
   try {
-    console.log(`🚚 Shipping order ${orderId}`);
+    logger.info("Expédition commande", "AdminOrderService", {
+      orderId,
+      hasTrackingNumber: !!trackingNumber
+    });
 
     const response = await apiClient.patch<Order>(
       `/admin/orders/${orderId}/ship`,
       { trackingNumber }
     );
 
-    console.log('✅ Order shipped');
+    logger.info("Commande expédiée avec succès", "AdminOrderService", {
+      orderId,
+      newStatus: response.data.status
+    });
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error(`❌ Error shipping order:`, getErrorMessage(error));
+    logger.error("Erreur expédition commande", "AdminOrderService", error, { orderId });
     throw new Error(getErrorMessage(error));
   }
 }
 
-/**
- * ✅ Marquer comme livrée
- */
+// Marquer comme livrée
 export async function deliverOrder(orderId: number): Promise<Order> {
   try {
-    console.log(`📦 Delivering order ${orderId}`);
+    logger.info("Livraison commande", "AdminOrderService", { orderId });
 
     const response = await apiClient.patch<Order>(
       `/admin/orders/${orderId}/deliver`
     );
 
-    console.log('✅ Order delivered');
+    logger.info("Commande livrée avec succès", "AdminOrderService", {
+      orderId,
+      newStatus: response.data.status
+    });
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error(`❌ Error delivering order:`, getErrorMessage(error));
+    logger.error("Erreur livraison commande", "AdminOrderService", error, { orderId });
     throw new Error(getErrorMessage(error));
   }
 }
 
-/**
- * ✅ Récupérer les statistiques des commandes
- */
+// Récupérer les statistiques des commandes
 export async function getOrderStats(): Promise<{
   total: number;
   pending: number;
@@ -256,18 +283,25 @@ export async function getOrderStats(): Promise<{
   monthRevenue: number;
 }> {
   try {
+    logger.debug("Récupération statistiques commandes", "AdminOrderService");
+    
     const response = await apiClient.get('/admin/orders/stats');
+    
+    logger.debug("Statistiques commandes récupérées", "AdminOrderService", {
+      total: response.data.total,
+      pending: response.data.pending,
+      delivered: response.data.delivered
+    });
+
     return response.data;
 
   } catch (error: unknown) {
-    console.error('❌ Error fetching order stats:', getErrorMessage(error));
+    logger.error("Erreur récupération statistiques commandes", "AdminOrderService", error);
     throw new Error(getErrorMessage(error));
   }
 }
 
-/**
- * ✅ Exporter les commandes en CSV
- */
+// Exporter les commandes en CSV
 export async function exportOrders(filters: OrderFilters): Promise<Blob> {
   try {
     const params: Record<string, string> = {};
@@ -276,15 +310,26 @@ export async function exportOrders(filters: OrderFilters): Promise<Blob> {
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
 
+    logger.info("Export commandes CSV", "AdminOrderService", {
+      hasStatus: !!filters.status,
+      hasDateRange: !!(filters.startDate || filters.endDate)
+    });
+
     const response = await apiClient.get('/admin/orders/export', {
       params,
       responseType: 'blob'
     });
 
+    logger.info("Export commandes CSV réussi", "AdminOrderService", {
+      blobSize: response.data.size
+    });
+
     return response.data;
 
   } catch (error: unknown) {
-    console.error('❌ Error exporting orders:', getErrorMessage(error));
+    logger.error("Erreur export commandes CSV", "AdminOrderService", error, {
+      status: filters.status
+    });
     throw new Error(getErrorMessage(error));
   }
 }

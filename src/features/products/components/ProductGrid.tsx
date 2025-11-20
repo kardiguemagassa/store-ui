@@ -1,7 +1,3 @@
-/**
- * PRODUCT GRID - VERSION AVEC SUPPORT CLEAR SEARCH
- */
-
 import { Link } from "react-router-dom";
 import { useAppDispatch } from "../../auth/hooks/redux";
 import { addToCart } from "../../cart/store/cartSlice";
@@ -40,12 +36,12 @@ export default function ProductGrid({
     "Nouveautés"
   ];
 
-  // ✅ Gestion du clear sans modifier SearchBox
+  // Gestion du clear sans modifier SearchBox
   const handleSearchWithClear = (query: string) => {
     if (query === "" && onClearSearch) {
-      onClearSearch(); // ✅ Utiliser le handler dédié pour vider
+      onClearSearch(); 
     } else {
-      onSearchChange(query); // ✅ Recherche normale
+      onSearchChange(query); 
     }
   };
 
@@ -59,7 +55,7 @@ export default function ProductGrid({
           label="Recherche"
           placeholder="Rechercher un produit..."
           value={currentSearch}
-          handleSearch={handleSearchWithClear} // ✅ Utiliser le wrapper
+          handleSearch={handleSearchWithClear} 
           disabled={loading}
         />
         <Dropdown

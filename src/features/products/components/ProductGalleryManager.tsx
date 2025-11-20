@@ -1,34 +1,16 @@
-/**
- * PRODUCT GALLERY MANAGER - VERSION PROFESSIONNELLE
- * 
- * Composant de gestion de galerie d'images produit avec :
- * - Upload multiple avec validation stricte
- * - Drag & drop pour réorganisation
- * - Suppression avec confirmation
- * - Gestion d'état optimisée
- * - Feedback visuel complet
- * 
- * @version 3.0 - PRODUCTION READY +++
- * @location src/features/products/components/admin/ProductGalleryManager.tsx
- */
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import type { Product } from '../types/product.types';
-import { getErrorMessage } from '../../../shared/types/errors.types';
+import { getErrorMessage, logger } from '../../../shared/types/errors.types';
 import { IMAGES_CONFIG, handleImageError } from '../../../shared/constants/images';
 
-// ✅ UTILISATION DES SERVICES EXISTANTS (pas de redéfinition)
+// UTILISATION DES SERVICES EXISTANTS (pas de redéfinition)
 import {
   getProductById,
   uploadGalleryImages,
   removeGalleryImage,
   reorderGallery
 } from '../services/adminProductService';
-
-// ============================================
-// TYPES
-// ============================================
 
 interface ProductGalleryManagerProps {
   productId: number;
@@ -46,10 +28,7 @@ const DEFAULT_CONFIG = {
   allowedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.gif'] as const
 };
 
-// ============================================
 // COMPOSANT PRINCIPAL
-// ============================================
-
 export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
   productId,
   initialImages = [],
@@ -64,46 +43,46 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
-
-  // ============================================
-  // ✅ CHARGEMENT INITIAL OPTIMISÉ
-  // ============================================
   
   useEffect(() => {
     const loadGalleryImages = async () => {
       // Si images initiales fournies, les utiliser
       if (initialImages.length > 0) {
-        console.log('✅ [Gallery] Utilisation des images initiales:', initialImages.length);
+        logger.debug("Utilisation des images initiales", "ProductGalleryManager", { 
+          initialImagesCount: initialImages.length 
+        });
         setGalleryImages(initialImages);
         return;
       }
 
       try {
         setIsLoading(true);
-        console.log('🔄 [Gallery] Chargement des images pour produit:', productId);
+        logger.debug("Chargement des images pour produit", "ProductGalleryManager", { productId });
         
         const product: Product = await getProductById(productId);
         
-        // ✅ Validation stricte des données
+        // Validation stricte des données
         if (!product) {
           throw new Error('Produit non trouvé');
         }
 
         const images = product.galleryImages || [];
         
-        // ✅ Validation que c'est bien un tableau
+        // Validation que c'est bien un tableau
         if (!Array.isArray(images)) {
-          console.error('❌ [Gallery] galleryImages n\'est pas un tableau:', images);
+          logger.error("galleryImages n'est pas un tableau", "ProductGalleryManager", null, { images });
           throw new Error('Format de galerie invalide');
         }
 
-        console.log('✅ [Gallery] Images chargées:', images.length);
+        logger.debug("Images chargées avec succès", "ProductGalleryManager", { 
+          imagesCount: images.length 
+        });
         setGalleryImages(images);
         onImagesChange?.(images);
 
       } catch (error: unknown) {
-        console.error('❌ [Gallery] Erreur chargement:', error);
         const message = getErrorMessage(error);
+        logger.error("Erreur lors du chargement de la galerie", "ProductGalleryManager", error, { productId });
         toast.error(`Erreur chargement galerie: ${message}`);
         setGalleryImages([]);
       } finally {
@@ -114,10 +93,7 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
     loadGalleryImages();
   }, [productId, initialImages.length, initialImages, onImagesChange]);
 
-  // ============================================
-  // ✅ VALIDATION FICHIERS ROBUSTE
-  // ============================================
-
+  // VALIDATION FICHIERS ROBUSTE
   const validateFiles = useCallback((files: FileList): { 
     valid: File[]; 
     errors: string[] 
@@ -173,30 +149,32 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
     return { valid, errors };
   }, [galleryImages.length, maxImages, maxFileSize]);
 
-  // ============================================
-  // ✅ UPLOAD AVEC PROGRESSION
-  // ============================================
-
+  // UPLOAD AVEC PROGRESSION
   const handleImageUpload = useCallback(async (files: FileList): Promise<void> => {
     if (files.length === 0) {
-      console.warn('⚠️ [Gallery] Aucun fichier sélectionné');
+      logger.warn("Aucun fichier sélectionné", "ProductGalleryManager");
       return;
     }
 
-    console.log('🔄 [Gallery] Validation de', files.length, 'fichiers');
+    logger.debug("Validation des fichiers", "ProductGalleryManager", { 
+      filesCount: files.length 
+    });
 
     // Validation
     const { valid, errors } = validateFiles(files);
 
     if (errors.length > 0) {
       const errorMessage = errors.join('\n');
-      console.error('❌ [Gallery] Erreurs de validation:', errors);
+      logger.warn("Erreurs de validation des fichiers", "ProductGalleryManager", {
+        errorsCount: errors.length,
+        validFilesCount: valid.length
+      });
       toast.error(errorMessage, { autoClose: 5000 });
       return;
     }
 
     if (valid.length === 0) {
-      console.warn('⚠️ [Gallery] Aucun fichier valide');
+      logger.warn("Aucun fichier valide après validation", "ProductGalleryManager");
       return;
     }
 
@@ -204,12 +182,16 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
     setUploadProgress(0);
 
     try {
-      console.log(`🔄 [Gallery] Upload de ${valid.length} images...`);
+      logger.info("Upload d'images", "ProductGalleryManager", {
+        productId,
+        filesCount: valid.length,
+        fileNames: valid.map(f => f.name)
+      });
 
-      // ✅ Upload via le service (qui gère déjà le FormData)
+      // Upload via le service (qui gère déjà le FormData)
       const uploadedUrls = await uploadGalleryImages(productId, valid);
 
-      // ✅ Validation de la réponse
+      // Validation de la réponse
       if (!Array.isArray(uploadedUrls)) {
         throw new Error('Format de réponse invalide du serveur');
       }
@@ -218,17 +200,24 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
         throw new Error('Aucune URL retournée par le serveur');
       }
 
-      // ✅ Mise à jour de l'état
+      // Mise à jour de l'état
       const newGalleryImages = [...galleryImages, ...uploadedUrls];
       setGalleryImages(newGalleryImages);
       onImagesChange?.(newGalleryImages);
 
-      console.log('✅ [Gallery] Upload réussi:', uploadedUrls.length, 'images');
+      logger.info("Upload réussi", "ProductGalleryManager", {
+        productId,
+        uploadedCount: uploadedUrls.length,
+        totalImages: newGalleryImages.length
+      });
       toast.success(`${uploadedUrls.length} image(s) ajoutée(s) avec succès`);
 
     } catch (error: unknown) {
-      console.error('❌ [Gallery] Erreur upload:', error);
       const message = getErrorMessage(error);
+      logger.error("Erreur lors de l'upload des images", "ProductGalleryManager", error, {
+        productId,
+        filesCount: valid.length
+      });
       toast.error(`Erreur upload: ${message}`);
     } finally {
       setIsLoading(false);
@@ -236,12 +225,13 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
     }
   }, [productId, galleryImages, onImagesChange, validateFiles]);
 
-  // ============================================
-  // ✅ SUPPRESSION AVEC CONFIRMATION
-  // ============================================
-
+  // SUPPRESSION AVEC CONFIRMATION
   const handleRemoveImage = useCallback(async (imageUrl: string, index: number): Promise<void> => {
-    console.log('🗑️ [Gallery] Demande de suppression:', { imageUrl, index });
+    logger.debug("Demande de suppression d'image", "ProductGalleryManager", { 
+      productId, 
+      imageIndex: index,
+      totalImages: galleryImages.length 
+    });
 
     // Confirmation utilisateur
     const confirmed = window.confirm(
@@ -249,81 +239,97 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
     );
 
     if (!confirmed) {
-      console.log('ℹ️ [Gallery] Suppression annulée par l\'utilisateur');
+      logger.debug("Suppression annulée par l'utilisateur", "ProductGalleryManager", { productId });
       return;
     }
 
     setIsLoading(true);
 
     try {
-      console.log('🔄 [Gallery] Suppression de l\'image...');
+      logger.info("Suppression d'image", "ProductGalleryManager", {
+        productId,
+        imageIndex: index
+      });
 
-      // ✅ Suppression via le service
+      // Suppression via le service
       await removeGalleryImage(productId, imageUrl);
 
-      // ✅ Mise à jour de l'état
+      // Mise à jour de l'état
       const newGalleryImages = galleryImages.filter(img => img !== imageUrl);
       setGalleryImages(newGalleryImages);
       onImagesChange?.(newGalleryImages);
 
-      console.log('✅ [Gallery] Image supprimée, reste:', newGalleryImages.length);
+      logger.info("Image supprimée avec succès", "ProductGalleryManager", {
+        productId,
+        remainingImages: newGalleryImages.length
+      });
       toast.success('Image supprimée avec succès');
 
     } catch (error: unknown) {
-      console.error('❌ [Gallery] Erreur suppression:', error);
       const message = getErrorMessage(error);
+      logger.error("Erreur lors de la suppression d'image", "ProductGalleryManager", error, {
+        productId,
+        imageIndex: index
+      });
       toast.error(`Erreur suppression: ${message}`);
     } finally {
       setIsLoading(false);
     }
   }, [productId, galleryImages, onImagesChange]);
 
-  // ============================================
-  // ✅ RÉORGANISATION AVEC VALIDATION
-  // ============================================
-
+  // RÉORGANISATION AVEC VALIDATION
   const handleReorder = useCallback(async (newOrder: string[]): Promise<void> => {
-    console.log('🔄 [Gallery] Tentative de réorganisation:', newOrder.length, 'images');
+    logger.debug("Tentative de réorganisation", "ProductGalleryManager", { 
+      productId,
+      imagesCount: newOrder.length 
+    });
 
-    // ✅ Validation : vérifier que l'ordre a réellement changé
+    // Validation : vérifier que l'ordre a réellement changé
     if (JSON.stringify(newOrder) === JSON.stringify(galleryImages)) {
-      console.log('ℹ️ [Gallery] Ordre inchangé, skip');
+      logger.debug("Ordre inchangé, skip de la réorganisation", "ProductGalleryManager", { productId });
       return;
     }
 
-    // ✅ Validation : nombre d'images cohérent
+    // Validation : nombre d'images cohérent
     if (newOrder.length !== galleryImages.length) {
-      console.error('❌ [Gallery] Nombre d\'images invalide:', newOrder.length, 'vs', galleryImages.length);
+      logger.error("Nombre d'images invalide lors de la réorganisation", "ProductGalleryManager", null, {
+        productId,
+        newOrderCount: newOrder.length,
+        currentCount: galleryImages.length
+      });
       toast.error('Erreur: nombre d\'images incohérent');
       return;
     }
 
-    // ✅ Validation : toutes les URLs doivent être présentes
+    // Validation : toutes les URLs doivent être présentes
     const allUrlsPresent = newOrder.every(url => galleryImages.includes(url));
     if (!allUrlsPresent) {
-      console.error('❌ [Gallery] URLs manquantes dans le nouvel ordre');
+      logger.error("URLs manquantes dans le nouvel ordre", "ProductGalleryManager", null, { productId });
       toast.error('Erreur: données incohérentes');
       return;
     }
 
-    // ✅ Mise à jour optimiste de l'UI
+    // Mise à jour optimiste de l'UI
     const previousOrder = [...galleryImages];
     setGalleryImages(newOrder);
 
     try {
-      console.log('🔄 [Gallery] Envoi de la nouvelle organisation au serveur...');
+      logger.info("Envoi de la nouvelle organisation au serveur", "ProductGalleryManager", {
+        productId,
+        imagesCount: newOrder.length
+      });
 
-      // ✅ Réorganisation via le service
+      // Réorganisation via le service
       await reorderGallery(productId, newOrder);
 
       onImagesChange?.(newOrder);
-      console.log('✅ [Gallery] Réorganisation réussie');
+      logger.info("Réorganisation réussie", "ProductGalleryManager", { productId });
       toast.success('Galerie réorganisée avec succès');
 
     } catch (error: unknown) {
-      console.error('❌ [Gallery] Erreur réorganisation:', error);
+      logger.error("Erreur lors de la réorganisation", "ProductGalleryManager", error, { productId });
       
-      // ✅ Rollback en cas d'erreur
+      // Rollback en cas d'erreur
       setGalleryImages(previousOrder);
       onImagesChange?.(previousOrder);
       
@@ -332,12 +338,9 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
     }
   }, [productId, galleryImages, onImagesChange]);
 
-  // ============================================
-  // ✅ DRAG & DROP HANDLERS
-  // ============================================
-
+  // DRAG & DROP HANDLERS
   const handleDragStart = useCallback((index: number) => {
-    console.log('🎯 [Gallery] Début du drag:', index);
+    logger.debug("Début du drag", "ProductGalleryManager", { index });
     setDraggedIndex(index);
   }, []);
 
@@ -362,7 +365,10 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
       return;
     }
 
-    console.log('📦 [Gallery] Drop:', draggedIndex, '→', targetIndex);
+    logger.debug("Drop d'image", "ProductGalleryManager", { 
+      fromIndex: draggedIndex, 
+      toIndex: targetIndex 
+    });
 
     // Créer le nouvel ordre
     const newImages = [...galleryImages];
@@ -382,10 +388,7 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
     setDragOverIndex(null);
   }, []);
 
-  // ============================================
-  // ✅ ZONE DRAG & DROP POUR UPLOAD
-  // ============================================
-
+  // ZONE DRAG & DROP POUR UPLOAD
   const handleZoneDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(true);
@@ -399,24 +402,20 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
     e.preventDefault();
     setIsDragging(false);
 
-    console.log('📤 [Gallery] Drop détecté:', e.dataTransfer.files.length, 'fichiers');
+    logger.debug("Drop de fichiers détecté", "ProductGalleryManager", { 
+      filesCount: e.dataTransfer.files?.length || 0 
+    });
 
     if (e.dataTransfer.files?.length > 0) {
       handleImageUpload(e.dataTransfer.files);
     }
   }, [handleImageUpload]);
 
-  // ============================================
-  // ✅ CALCULS DÉRIVÉS
-  // ============================================
-
+  // CALCULS DÉRIVÉS
   const canAddMore = useMemo(() => galleryImages.length < maxImages, [galleryImages.length, maxImages]);
   const remainingSlots = useMemo(() => maxImages - galleryImages.length, [galleryImages.length, maxImages]);
 
-  // ============================================
   // RENDER
-  // ============================================
-
   return (
     <div className="space-y-6">
       {/* En-tête avec statistiques */}
@@ -469,10 +468,7 @@ export const ProductGalleryManager: React.FC<ProductGalleryManagerProps> = ({
   );
 };
 
-// ============================================
-// SOUS-COMPOSANTS
-// ============================================
-
+// SOUS-COMPOSANTS (inchangés)
 interface GalleryHeaderProps {
   imageCount: number;
   maxImages: number;
@@ -663,7 +659,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
   onDrop,
   onDragEnd
 }) => {
-  // ✅ Utiliser IMAGES_CONFIG pour l'URL correcte
+  // Utiliser IMAGES_CONFIG pour l'URL correcte
   const imageUrl = IMAGES_CONFIG.getProductImage(url);
 
   return (
@@ -785,55 +781,3 @@ const ReorderInstructions: React.FC = () => (
 );
 
 export default ProductGalleryManager;
-
-/**
- * ✅ AMÉLIORATIONS v3.0 - NIVEAU PROFESSIONNEL:
- * 
- * 1. **Architecture**
- *    - Utilisation des services existants (pas de duplication)
- *    - Séparation claire des responsabilités
- *    - Composants réutilisables
- * 
- * 2. **Validation**
- *    - Validation stricte des fichiers (taille, type, extension)
- *    - Validation du nombre total d'images
- *    - Validation des données serveur
- * 
- * 3. **UX/UI**
- *    - Feedback visuel complet
- *    - Progression d'upload
- *    - États de chargement clairs
- *    - Instructions utilisateur
- *    - Confirmations avant suppression
- * 
- * 4. **Performance**
- *    - Mise à jour optimiste de l'UI
- *    - Rollback automatique en cas d'erreur
- *    - Calculs mémoïsés avec useMemo
- *    - Callbacks optimisés avec useCallback
- * 
- * 5. **Robustesse**
- *    - Gestion d'erreurs complète
- *    - Logs détaillés pour debugging
- *    - Validation à chaque étape
- *    - Support des images depuis IMAGES_CONFIG
- * 
- * 6. **Accessibilité**
- *    - Attributs ARIA appropriés
- *    - Feedback visuel et textuel
- *    - Boutons avec tooltips
- *    - Support keyboard (via drag & drop natif)
- * 
- * UTILISATION:
- * 
- * ```tsx
- * <ProductGalleryManager
- *   productId={productId}
- *   maxImages={10}
- *   maxFileSize={5}
- *   onImagesChange={(images) => {
- *     console.log('Galerie mise à jour:', images);
- *   }}
- * />
- * ```
- */

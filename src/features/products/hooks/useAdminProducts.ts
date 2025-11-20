@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import type { Product, AdminProductFilters, PaginatedProductsResponse } from "../types/product.types";
 import apiClient from "../../../shared/api/apiClient";
+import { logger } from "../../../shared/types/errors.types";
 
 interface UseAdminProductsResult {
   products: Product[];
@@ -28,9 +29,8 @@ export const useAdminProducts = (filters: AdminProductFilters): UseAdminProducts
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      console.log("🔄 ADMIN - Chargement produits avec params:", filters);
+      logger.debug("Chargement produits admin avec paramètres", "useAdminProducts", { filters });
 
-      // ✅ CORRECTION : Gérer activeOnly correctement
       const cleanParams: Record<string, string> = {};
 
       // Paramètres obligatoires
@@ -39,7 +39,7 @@ export const useAdminProducts = (filters: AdminProductFilters): UseAdminProducts
       cleanParams.sortBy = filters.sortBy;
       cleanParams.sortDirection = filters.sortDirection;
 
-      // ✅ CORRECTION CRITIQUE : Ne pas envoyer activeOnly quand il est null
+     
       if (filters.activeOnly !== null && filters.activeOnly !== undefined) {
         cleanParams.activeOnly = filters.activeOnly.toString();
       }
@@ -53,8 +53,10 @@ export const useAdminProducts = (filters: AdminProductFilters): UseAdminProducts
         cleanParams.category = filters.category;
       }
 
-      console.log("🌐 ADMIN - Endpoint appelé: /products/admin/paginated");
-      console.log("📋 ADMIN - Paramètres nettoyés:", cleanParams);
+      logger.debug("Appel endpoint admin avec paramètres", "useAdminProducts", {
+        endpoint: "/products/admin/paginated",
+        params: cleanParams
+      });
 
       const response = await apiClient.get<PaginatedProductsResponse>(
         "/products/admin/paginated",
@@ -63,7 +65,7 @@ export const useAdminProducts = (filters: AdminProductFilters): UseAdminProducts
 
       const data = response.data;
       
-      console.log("✅ ADMIN - Produits chargés:", {
+      logger.debug("Produits admin chargés avec succès", "useAdminProducts", {
         count: data.content?.length || 0,
         total: data.totalElements,
         page: data.number,
@@ -80,10 +82,10 @@ export const useAdminProducts = (filters: AdminProductFilters): UseAdminProducts
       });
 
     } catch (error: unknown) {
-      console.error("❌ ADMIN - Erreur chargement produits:", error);
+      logger.error("Erreur lors du chargement des produits admin", "useAdminProducts", error, { filters });
       
       // Fallback vers l'endpoint public
-      console.log("🔄 ADMIN - Tentative avec endpoint public comme fallback...");
+      logger.debug("Tentative avec endpoint public comme fallback", "useAdminProducts", { filters });
       
       try {
         const fallbackParams: Record<string, string> = {
@@ -93,7 +95,7 @@ export const useAdminProducts = (filters: AdminProductFilters): UseAdminProducts
           sortDirection: filters.sortDirection,
         };
 
-        // ✅ Appliquer la même logique pour le fallback
+        // Appliquer la même logique pour le fallback
         if (filters.activeOnly !== null && filters.activeOnly !== undefined) {
           fallbackParams.activeOnly = filters.activeOnly.toString();
         }
@@ -108,7 +110,7 @@ export const useAdminProducts = (filters: AdminProductFilters): UseAdminProducts
 
         const fallbackData = fallbackResponse.data;
         
-        console.log("✅ ADMIN - Fallback réussi:", {
+        logger.debug("Fallback réussi avec endpoint public", "useAdminProducts", {
           count: fallbackData.content?.length || 0,
           total: fallbackData.totalElements
         });
@@ -122,7 +124,7 @@ export const useAdminProducts = (filters: AdminProductFilters): UseAdminProducts
         });
 
       } catch (fallbackError) {
-        console.error("❌ ADMIN - Fallback échoué:", fallbackError);
+        logger.error("Fallback échoué", "useAdminProducts", fallbackError, { filters });
         setProducts([]);
         setPagination({
           currentPage: 0,

@@ -1,18 +1,5 @@
-/**
- * PRODUCT TYPES - VERSION CORRIGÉE
- * 
- * ✅ CORRECTIONS APPLIQUÉES:
- * 1. SORT_MAPPING utilise maintenant PublicSortBy (UPPERCASE)
- * 2. Type cohérent entre UI et backend
- * 
- * VERSION 2.2 - FIXED SORT MAPPING
- */
 
-// ============================================
 // ENTITÉS PRINCIPALES
-// ============================================
-
-
 export interface Product {
   productId: number;
   name: string;
@@ -42,10 +29,7 @@ export interface Category {
   productCount?: number;
 }
 
-// ============================================
 // TYPES API
-// ============================================
-
 export interface ProductFormData {
   productId: number;
   name: string;
@@ -69,10 +53,7 @@ export interface ProductUpdateData {
   isActive?: boolean;
 }
 
-// ============================================
 // TYPES UI
-// ============================================
-
 export interface ProductFormState {
   name: string;
   description: string;
@@ -126,10 +107,7 @@ export function formStateToCreateData(formState: ProductFormState): ProductFormD
   };
 }
 
-// ============================================
 // FILTRES PUBLIC
-// ============================================
-
 export type PublicSortBy = 
   | "NAME" 
   | "PRICE" 
@@ -154,30 +132,13 @@ export const DEFAULT_PUBLIC_FILTERS: PublicProductFilters = {
   sortDirection: "DESC"
 };
 
-// ============================================
-// ✅ CORRECTION CRITIQUE: SORT_MAPPING
-// ============================================
-
-/**
- * Options de tri pour l'UI (labels affichés à l'utilisateur)
- */
+// Options de tri pour l'UI (labels affichés à l'utilisateur)
 export type SortOption =
   | "Popularité"
   | "Prix du plus bas au plus élevé"
   | "Prix du plus élevé au plus bas"
   | "Nouveautés";
 
-/**
- * ✅ MAPPING CORRIGÉ: Utilise PublicSortBy avec valeurs UPPERCASE
- * 
- * AVANT (INCORRECT):
- * "Popularité": { sortBy: "popularity", sortDirection: "desc" }
- *                        ^^^^^^^^^^^ minuscules - ne correspond pas au backend!
- * 
- * APRÈS (CORRECT):
- * "Popularité": { sortBy: "POPULARITY", sortDirection: "DESC" }
- *                        ^^^^^^^^^^^ MAJUSCULES - correspond au backend!
- */
 export const SORT_MAPPING: Record<
   SortOption,
   { sortBy: PublicSortBy; sortDirection: PublicSortDirection }
@@ -188,16 +149,12 @@ export const SORT_MAPPING: Record<
   "Nouveautés": { sortBy: "CREATED_DATE", sortDirection: "DESC" }
 };
 
-/**
- * ✅ Helper pour récupérer les paramètres backend depuis une SortOption UI
- */
+// Helper pour récupérer les paramètres backend depuis une SortOption UI
 export function getSortParams(sortOption: SortOption): { sortBy: PublicSortBy; sortDirection: PublicSortDirection } {
   return SORT_MAPPING[sortOption];
 }
 
-/**
- * ✅ Helper inverse: récupérer la SortOption depuis les paramètres backend
- */
+// Helper inverse: récupérer la SortOption depuis les paramètres backend
 export function getSortOptionFromParams(sortBy: string, sortDirection: string): SortOption {
   // Normaliser en uppercase
   const normalizedSortBy = sortBy.toUpperCase();
@@ -214,9 +171,7 @@ export function getSortOptionFromParams(sortBy: string, sortDirection: string): 
   return "Popularité";
 }
 
-// ============================================
 // FILTRES ADMIN
-// ============================================
 
 export type AdminSortBy = 
   | "NAME" 
@@ -245,9 +200,7 @@ export const DEFAULT_ADMIN_FILTERS: AdminProductFilters = {
   activeOnly: null
 };
 
-// ============================================
 // RÉPONSE PAGINÉE
-// ============================================
 
 // Dans product.types.ts
 export interface PaginatedProductsResponse {
@@ -260,15 +213,11 @@ export interface PaginatedProductsResponse {
   last: boolean;
   numberOfElements?: number;
   empty?: boolean;
-  // ✅ Ajouter les champs Spring Data si nécessaire
   pageable?: unknown;
   sort?: unknown;
 }
 
-// ============================================
 // RECHERCHE AVANCÉE
-// ============================================
-
 export interface ProductSearchCriteria {
   page: number;
   size: number;
@@ -282,10 +231,7 @@ export interface ProductSearchCriteria {
   sortDirection?: PublicSortDirection;
 }
 
-// ============================================
 // STOCK STATUS
-// ============================================
-
 export type StockStatus = 
   | "IN_STOCK"
   | "LOW_STOCK"
@@ -319,10 +265,7 @@ export function getStockLabel(quantity: number): string {
   return `${quantity} unités`;
 }
 
-// ============================================
 // VALIDATION HELPERS
-// ============================================
-
 export function isValidProduct(product: Partial<Product>): boolean {
   return !!(
     product.name &&
@@ -341,18 +284,3 @@ export function isInStock(product: Product): boolean {
 export function isActiveProduct(product: Product): boolean {
   return product.isActive !== false;
 }
-
-/**
- * ✅ RÉSUMÉ DES CORRECTIONS v2.2:
- * 
- * 1. SORT_MAPPING utilise maintenant PublicSortBy (type strict)
- * 2. Valeurs en MAJUSCULES pour correspondre au backend
- * 3. Ajout de getSortParams() et getSortOptionFromParams() helpers
- * 4. Type-safe à 100%
- * 
- * AVANT:
- * sortBy: "popularity" (string générique, minuscule)
- * 
- * APRÈS:
- * sortBy: "POPULARITY" (PublicSortBy, majuscule)
- */
