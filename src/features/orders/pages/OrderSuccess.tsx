@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { logger } from '../../../shared/types/errors.types';
 
 export default function OrderSuccess() {
   const [searchParams] = useSearchParams();
@@ -7,9 +8,15 @@ export default function OrderSuccess() {
   const [countdown, setCountdown] = useState(10);
 
   useEffect(() => {
+    logger.debug("Affichage de la page de succès de commande", "OrderSuccess", {
+      orderId,
+      hasOrderId: !!orderId
+    });
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
+          logger.debug("Redirection automatique vers les commandes", "OrderSuccess", { orderId });
           window.location.href = '/orders';
           return 0;
         }
@@ -17,8 +24,11 @@ export default function OrderSuccess() {
       });
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => {
+      logger.debug("Nettoyage du timer de redirection", "OrderSuccess");
+      clearInterval(timer);
+    };
+  }, [orderId]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-gray-50 dark:bg-gray-900">
@@ -72,12 +82,14 @@ export default function OrderSuccess() {
           <Link
             to="/orders"
             className="px-8 py-3 bg-primary dark:bg-light text-white dark:text-black rounded-lg font-semibold hover:bg-dark dark:hover:bg-lighter transition"
+            onClick={() => logger.debug("Clic sur 'Voir mes commandes'", "OrderSuccess", { orderId })}
           >
             Voir mes commandes
           </Link>
           <Link
             to="/home"
             className="px-8 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+            onClick={() => logger.debug("Clic sur 'Continuer mes achats'", "OrderSuccess", { orderId })}
           >
             Continuer mes achats
           </Link>

@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link, useLoaderData, useRevalidator } from "react-router-dom";
+import { Link, useLoaderData } from "react-router-dom";
 import { toast } from "react-toastify";
-import apiClient from "../../../shared/api/apiClient";
+import { 
+  getAllOrders, 
+  confirmOrder, 
+  cancelOrder, 
+  updateOrderStatus, 
+} from "../services/orderService";
 import PageTitle from "../../../shared/components/PageTitle";
 import Pagination from "../../../shared/components/Pagination";
 import { handleImageError, IMAGES_CONFIG } from "../../../shared/constants/images";
-import { getErrorMessage } from "../../../shared/types/errors.types";
+import { getErrorMessage, logger } from "../../../shared/types/errors.types";
 import { 
   formatDate, 
   formatOrderNumber, 
@@ -13,47 +18,27 @@ import {
   getPaymentStatusColor, 
   getPaymentStatusLabel, 
   type OrderItemResponse, 
-  type OrderResponse 
+  type OrderResponse,
+  type OrderFilters,
+  ORDER_STATUS,
+  type PaginatedOrdersResponse
 } from "../types/orders.types";
 
-// ============================================
 // TYPES POUR LA FONCTIONNALITÉ AVANCÉE
-// ============================================
-
 type OrderStatus = 
-  | "PENDING" 
+  | "CREATED" 
   | "CONFIRMED" 
-  | "PROCESSING" 
-  | "SHIPPED" 
-  | "DELIVERED" 
-  | "CANCELLED";
+  | "CANCELLED" 
+  | "DELIVERED";
 
-interface OrderFilters {
-  page: number;
-  size: number;
-  status?: OrderStatus;
-  query?: string;
-}
-
-interface PaginatedOrdersResponse {
-  content: OrderResponse[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-}
-
-// ============================================
-// CONFIGURATION DES STATUTS AVANCÉS
-// ============================================
-
+// CONFIGURATION DES STATUTS
 const ORDER_STATUS_CONFIG: Record<OrderStatus, {
   label: string;
   color: string;
   emoji: string;
   nextAction?: { label: string; status: OrderStatus };
 }> = {
-  PENDING: {
+  CREATED: {
     label: "En attente",
     color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100",
     emoji: "⏳",
@@ -63,18 +48,6 @@ const ORDER_STATUS_CONFIG: Record<OrderStatus, {
     label: "Confirmée",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100",
     emoji: "✅",
-    nextAction: { label: "Traiter", status: "PROCESSING" }
-  },
-  PROCESSING: {
-    label: "En préparation",
-    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100",
-    emoji: "📦",
-    nextAction: { label: "Expédier", status: "SHIPPED" }
-  },
-  SHIPPED: {
-    label: "Expédiée",
-    color: "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100",
-    emoji: "🚚",
     nextAction: { label: "Livrer", status: "DELIVERED" }
   },
   DELIVERED: {
@@ -89,82 +62,80 @@ const ORDER_STATUS_CONFIG: Record<OrderStatus, {
   }
 };
 
-// ============================================
-// COMPOSANT PRINCIPAL CORRIGÉ
-// ============================================
-
+// COMPOSANT PRINCIPAL
 export default function AdminOrders() {
   const loaderData = useLoaderData();
-  const revalidator = useRevalidator();
 
-  // État pour la gestion avancée
+  // État pour la gestion des filtres et pagination
   const [filters, setFilters] = useState<OrderFilters>({
     page: 0,
-    size: 10
-  });
-  const [pagination, setPagination] = useState({
-    currentPage: 0,
-    totalPages: 0,
-    totalElements: 0
+    size: 2
   });
 
-  // Validation et typage des commandes
-  const orders: OrderResponse[] = (() => {
-    if (!loaderData || !Array.isArray(loaderData)) return [];
-    return loaderData.filter((order): order is OrderResponse =>
-      order && typeof order === 'object' && 'orderId' in order
-    );
-  })();
+  const [paginatedData, setPaginatedData] = useState<PaginatedOrdersResponse>({
+    content: [],
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 10,
+    first: true,
+    last: true
+  });
+
+  const [loading, setLoading] = useState(false);
+
+  // initialisation des données du loader
+  useEffect(() => {
+    if (loaderData && Array.isArray(loaderData)) {
+      setPaginatedData({
+        content: loaderData,
+        totalElements: loaderData.length,
+        totalPages: Math.ceil(loaderData.length / 10),
+        number: 0,
+        size: 1,
+        first: true,
+        last: loaderData.length <= 10
+      });
+    }
+  }, [loaderData]);
 
   // Chargement des commandes avec filtres
   const loadOrders = useCallback(async () => {
+    setLoading(true);
     try {
-      const params: Record<string, string> = {
-        page: filters.page.toString(),
-        size: filters.size.toString()
-      };
-
-      if (filters.status) params.status = filters.status;
-      if (filters.query) params.query = filters.query;
-
-      const response = await apiClient.get<PaginatedOrdersResponse>(
-        "/admin/orders",
-        { params }
-      );
-
-      setPagination({
-        currentPage: response.data.number,
-        totalPages: response.data.totalPages,
-        totalElements: response.data.totalElements
+      logger.info('Chargement des commandes avec filtres', 'AdminOrders', { filters });
+      const data = await getAllOrders(filters);
+      logger.info('Commandes chargées avec succès', 'AdminOrders', {
+        page: data.number,
+        size: data.size,
+        total: data.totalElements,
+        items: data.content.length
       });
-
+      setPaginatedData(data);
     } catch (error: unknown) {
+      logger.error('Erreur lors du chargement des commandes', 'AdminOrders', error);
       toast.error(getErrorMessage(error));
+    } finally {
+      setLoading(false);
     }
   }, [filters]);
 
-  // ✅ CORRECTION: Supprimé handleConfirm et handleCancel inutilisés
-  // et conservé seulement les nouvelles fonctions
+  // Charger les commandes quand les filtres changent
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
 
-  // NOUVELLES FONCTIONNALITÉS AVANCÉES
-  const handleChangeStatus = async (orderId: number, newStatus: OrderStatus) => {
-    try {
-      await apiClient.patch(`/admin/orders/${orderId}/status`, { status: newStatus });
-      toast.success(`✅ Statut mis à jour: ${ORDER_STATUS_CONFIG[newStatus].label}`);
-      revalidator.revalidate();
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error));
-    }
-  };
-
+  // ACTIONS SUR LES COMMANDES
   const handleConfirmOrder = async (orderId: number) => {
     if (!window.confirm("Confirmer cette commande ?")) return;
 
     try {
-      await apiClient.patch(`/admin/orders/${orderId}/confirm`);
-      toast.success("✅ Commande confirmée avec succès");
-      revalidator.revalidate();
+      await confirmOrder(orderId);
+      logger.info(`Commande ${orderId} confirmée`, 'AdminOrders');
+      toast.success("Commande confirmée avec succès");
+      loadOrders();
     } catch (error: unknown) {
+      logger.error(`Erreur lors de la confirmation de la commande ${orderId}`, 'AdminOrders', error);
       toast.error(getErrorMessage(error));
     }
   };
@@ -174,10 +145,24 @@ export default function AdminOrders() {
     if (reason === null) return;
 
     try {
-      await apiClient.patch(`/admin/orders/${orderId}/cancel`, { reason });
-      toast.success("✅ Commande annulée");
-      revalidator.revalidate();
+      await cancelOrder(orderId, reason);
+      logger.info(`Commande ${orderId} annulée`, 'AdminOrders', { reason });
+      toast.success("Commande annulée");
+      loadOrders();
     } catch (error: unknown) {
+      logger.error(`Erreur lors de l'annulation de la commande ${orderId}`, 'AdminOrders', error);
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const handleChangeStatus = async (orderId: number, newStatus: OrderStatus) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      logger.info(`Statut de la commande ${orderId} mis à jour`, 'AdminOrders', { newStatus });
+      toast.success(`Statut mis à jour: ${ORDER_STATUS_CONFIG[newStatus].label}`);
+      loadOrders();
+    } catch (error: unknown) {
+      logger.error(`Erreur lors du changement de statut de la commande ${orderId}`, 'AdminOrders', error);
       toast.error(getErrorMessage(error));
     }
   };
@@ -203,13 +188,22 @@ export default function AdminOrders() {
     }));
   };
 
-  // EFFET POUR CHARGEMENT AVEC FILTRES
-  useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+  // RENDU
+  const orders = paginatedData.content;
 
-  // État de chargement
-  if (orders.length === 0) {
+  if (loading) {
+    return (
+      <div className="min-h-screen container mx-auto px-6 py-12 font-primary dark:bg-darkbg">
+        <PageTitle title="Gestion des commandes" />
+        <div className="text-center py-16">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-500 dark:text-gray-400">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loading && orders.length === 0 && !filters.query && !filters.status) {
     return (
       <div className="min-h-screen container mx-auto px-6 py-12 font-primary dark:bg-darkbg">
         <PageTitle title="Gestion des commandes" />
@@ -230,7 +224,7 @@ export default function AdminOrders() {
     <div className="min-h-screen container mx-auto px-6 py-12 font-primary dark:bg-darkbg">
       <PageTitle title="Gestion des commandes administratives" />
       
-      {/* Barre de filtres avancés */}
+      {/* Barre de filtres */}
       <FilterBar
         filters={filters}
         onSearch={handleSearch}
@@ -241,49 +235,57 @@ export default function AdminOrders() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total commandes"
-          value={orders.length}
+          value={paginatedData.totalElements}
           icon="📦"
           color="blue"
         />
         <StatCard
           title="En attente"
-          value={orders.filter(o => o.orderStatus === 'CREATED').length}
+          value={orders.filter(o => o.orderStatus === ORDER_STATUS.CREATED).length}
           icon="⏳"
           color="yellow"
         />
         <StatCard
           title="Confirmées"
-          value={orders.filter(o => o.orderStatus === 'CONFIRMED').length}
+          value={orders.filter(o => o.orderStatus === ORDER_STATUS.CONFIRMED).length}
           icon="✅"
           color="green"
         />
         <StatCard
           title="Annulées"
-          value={orders.filter(o => o.orderStatus === 'CANCELLED').length}
+          value={orders.filter(o => o.orderStatus === ORDER_STATUS.CANCELLED).length}
           icon="❌"
           color="red"
         />
       </div>
 
-      {/* Liste des commandes avec nouvelles actions */}
-      <div className="space-y-6">
-        {orders.map((order) => (
-          <EnhancedOrderCard
-            key={order.orderId}
-            order={order}
-            onConfirm={handleConfirmOrder}
-            onCancel={handleCancelOrder}
-            onChangeStatus={handleChangeStatus}
-          />
-        ))}
-      </div>
+      {/* Liste des commandes */}
+      {orders.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-gray-500 dark:text-gray-400">
+            Aucune commande ne correspond aux filtres sélectionnés
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {orders.map((order: OrderResponse) => (
+            <EnhancedOrderCard
+              key={order.orderId}
+              order={order}
+              onConfirm={handleConfirmOrder}
+              onCancel={handleCancelOrder}
+              onChangeStatus={handleChangeStatus}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
+      {paginatedData.totalPages > 1 && (
         <div className="mt-8">
           <Pagination
-            currentPage={pagination.currentPage}
-            totalPages={pagination.totalPages}
+            currentPage={paginatedData.number}
+            totalPages={paginatedData.totalPages}
             onPageChange={handlePageChange}
           />
         </div>
@@ -292,11 +294,7 @@ export default function AdminOrders() {
   );
 }
 
-// ============================================
 // COMPOSANTS
-// ============================================
-
-// Barre de filtres
 interface FilterBarProps {
   filters: OrderFilters;
   onSearch: (query: string) => void;
@@ -306,21 +304,19 @@ interface FilterBarProps {
 const FilterBar = ({ filters, onSearch, onStatusFilter }: FilterBarProps) => (
   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Recherche */}
       <div className="md:col-span-2">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           🔍 Rechercher
         </label>
         <input
           type="text"
-          placeholder="N° de commande ou email..."
+          placeholder="N° de commande, email ou nom du client..."
           value={filters.query || ""}
           onChange={(e) => onSearch(e.target.value)}
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white"
         />
       </div>
 
-      {/* Filtre Statut */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           📊 Statut
@@ -342,7 +338,6 @@ const FilterBar = ({ filters, onSearch, onStatusFilter }: FilterBarProps) => (
   </div>
 );
 
-// Carte de commande améliorée
 interface EnhancedOrderCardProps {
   order: OrderResponse;
   onConfirm: (orderId: number) => void;
@@ -351,20 +346,16 @@ interface EnhancedOrderCardProps {
 }
 
 const EnhancedOrderCard = ({ order, onConfirm, onCancel, onChangeStatus }: EnhancedOrderCardProps) => {
-  // ✅ CORRECTION: Supprimé statusColor inutilisé
   const paymentColor = getPaymentStatusColor(order.paymentStatus);
 
-  // Conversion du statut pour la nouvelle configuration
   const getMappedStatus = (status: string): OrderStatus => {
     const statusMap: Record<string, OrderStatus> = {
-      'CREATED': 'PENDING',
-      'CONFIRMED': 'CONFIRMED',
-      'PROCESSING': 'PROCESSING',
-      'SHIPPED': 'SHIPPED',
-      'DELIVERED': 'DELIVERED',
-      'CANCELLED': 'CANCELLED'
+      [ORDER_STATUS.CREATED]: 'CREATED',
+      [ORDER_STATUS.CONFIRMED]: 'CONFIRMED',
+      [ORDER_STATUS.DELIVERED]: 'DELIVERED',
+      [ORDER_STATUS.CANCELLED]: 'CANCELLED'
     };
-    return statusMap[status] || 'PENDING';
+    return statusMap[status] || 'CREATED';
   };
 
   const currentStatus = getMappedStatus(order.orderStatus);
@@ -373,7 +364,6 @@ const EnhancedOrderCard = ({ order, onConfirm, onCancel, onChangeStatus }: Enhan
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-      {/* En-tête améliorée */}
       <div className="flex flex-wrap items-center justify-between mb-6">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -383,6 +373,18 @@ const EnhancedOrderCard = ({ order, onConfirm, onCancel, onChangeStatus }: Enhan
             <EnhancedStatusBadge status={currentStatus} />
           </div>
           
+          {/*AFFICHAGE DES INFOS CLIENT */}
+          <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center gap-2">
+              <span>👤</span>
+              <span className="font-semibold">{order.customerName || 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>📧</span>
+              <span>{order.customerEmail || 'N/A'}</span>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-center gap-2">
               <span>💰</span>
@@ -401,44 +403,39 @@ const EnhancedOrderCard = ({ order, onConfirm, onCancel, onChangeStatus }: Enhan
           </div>
         </div>
 
-        {/* Actions avancées */}
         <div className="flex gap-2 mt-4 lg:mt-0">
-          {/* Voir détails */}
           <Link
             to={`/admin/orders/${order.orderId}`}
-            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 text-sm px-3 py-2 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-50 transition"
+            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 text-sm px-3 py-2 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
             title="Voir les détails"
           >
             👁️
           </Link>
 
-          {/* Confirmer (si PENDING) */}
-          {currentStatus === 'PENDING' && (
+          {currentStatus === 'CREATED' && (
             <button
               onClick={() => onConfirm(order.orderId)}
-              className="text-green-600 hover:text-green-800 dark:text-green-400 text-sm px-3 py-2 rounded border border-green-200 dark:border-green-800 hover:bg-green-50 transition"
+              className="text-green-600 hover:text-green-800 dark:text-green-400 text-sm px-3 py-2 rounded border border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 transition"
               title="Confirmer la commande"
             >
               ✅
             </button>
           )}
 
-          {/* Action suivante */}
           {statusConfig.nextAction && (
             <button
               onClick={() => onChangeStatus(order.orderId, statusConfig.nextAction!.status)}
-              className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 text-sm px-3 py-2 rounded border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 transition"
+              className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 text-sm px-3 py-2 rounded border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition"
               title={statusConfig.nextAction.label}
             >
               ➡️
             </button>
           )}
 
-          {/* Annuler */}
           {canCancel && (
             <button
               onClick={() => onCancel(order.orderId)}
-              className="text-red-600 hover:text-red-800 dark:text-red-400 text-sm px-3 py-2 rounded border border-red-200 dark:border-red-800 hover:bg-red-50 transition"
+              className="text-red-600 hover:text-red-800 dark:text-red-400 text-sm px-3 py-2 rounded border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
               title="Annuler la commande"
             >
               ❌
@@ -447,7 +444,6 @@ const EnhancedOrderCard = ({ order, onConfirm, onCancel, onChangeStatus }: Enhan
         </div>
       </div>
 
-      {/* Articles de la commande */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Articles ({order.items?.length || 0})
@@ -463,7 +459,6 @@ const EnhancedOrderCard = ({ order, onConfirm, onCancel, onChangeStatus }: Enhan
   );
 };
 
-// Badge de statut amélioré
 const EnhancedStatusBadge = ({ status }: { status: OrderStatus }) => {
   const config = ORDER_STATUS_CONFIG[status];
   
@@ -474,10 +469,6 @@ const EnhancedStatusBadge = ({ status }: { status: OrderStatus }) => {
     </span>
   );
 };
-
-// ============================================
-// COMPOSANTS EXISTANTS
-// ============================================
 
 interface StatCardProps {
   title: string;
