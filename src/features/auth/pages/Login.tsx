@@ -4,10 +4,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { loginAsync } from "../store/authSlice";
 import { useAppDispatch, useAppSelector } from "../hooks/redux";
-
+import { logger } from "../../../shared/types/errors.types";
 
 // TYPES LOCAUX
-
 interface LoginFormData {
   username: string;
   password: string;
@@ -33,7 +32,9 @@ export default function Login() {
   const { error: reduxError, isAuthenticated } = useAppSelector(state => state.auth);
 
   // FONCTION POUR Basculer LA VISIBILITÉ
-  const togglePasswordVisibility = () => {setShowPassword(prev => !prev);};
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
+  };
 
   // Gestion de la soumission du formulaire
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -48,13 +49,15 @@ export default function Login() {
       return;
     }
 
-    console.log('🔐 Login attempt with:', { username: formData.username });
+    logger.info('Tentative de connexion', 'Login', {
+      username: formData.username
+    });
 
     try {
       const result = await dispatch(loginAsync(formData));
       
       if (loginAsync.fulfilled.match(result)) {
-        console.log(' Login successful, redirecting...');
+        logger.info('Connexion réussie, redirection en cours', 'Login');
         toast.success("Connexion réussie!");
         
         // Redirection vers la page demandée ou /home
@@ -62,7 +65,9 @@ export default function Login() {
         sessionStorage.removeItem("redirectPath");
         navigate(from, { replace: true });
       } else if (loginAsync.rejected.match(result)) {
-        console.log('Login failed:', result.payload);
+        logger.warn('Échec de la connexion', 'Login', null, {
+          error: result.payload
+        });
         
         // MESSAGES D'ERREUR PLUS EXPLICITES
         let errorMessage = result.payload as string;
@@ -80,7 +85,7 @@ export default function Login() {
         toast.error(errorMessage);
       }
     } catch (err) {
-      console.error('💥 Login error:', err);
+      logger.error('Erreur inattendue lors de la connexion', 'Login', err);
       setLocalError('Erreur inattendue lors de la connexion');
       toast.error('Erreur inattendue lors de la connexion');
     } finally {
@@ -100,7 +105,7 @@ export default function Login() {
   // Redirection si déjà authentifié
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('Already authenticated, redirecting...');
+      logger.info('Utilisateur déjà authentifié, redirection en cours', 'Login');
       const from = sessionStorage.getItem("redirectPath") || "/home";
       sessionStorage.removeItem("redirectPath");
       navigate(from, { replace: true });
@@ -182,7 +187,7 @@ export default function Login() {
             </div>
             {/* INDICATION POUR L'UTILISATEUR */}
             <div className="text-xs text-gray-500 dark:text-gray-300 mt-1">
-              Cliquez sur l'icône 👁️ pour afficher/masquer le mot de passe
+              Cliquez sur l'icône pour afficher/masquer le mot de passe
             </div>
           </div>
 

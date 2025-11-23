@@ -1,5 +1,5 @@
 import apiClient from '../../../shared/api/apiClient';
-import { handleApiError, type ApiError } from '../../../shared/types/errors.types';
+import { handleApiError, type ApiError, logger } from '../../../shared/types/errors.types';
 import type { 
   User, 
   LoginCredentials, 
@@ -22,149 +22,157 @@ interface UserAddress {
 // AUTH SERVICE
 class AuthService {
   
-  //LOGIN - Détection automatique du format backend
+  // LOGIN - Détection automatique du format backend
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
-      console.log('🔐 Login attempt for:', credentials.username);
+      logger.info('Tentative de connexion', 'AuthService.login', {
+        username: credentials.username
+      });
       
       const response = await apiClient.post<unknown>('/auth/login', credentials);
-      console.log('🔍 Raw login response:', response.data);
+      logger.debug('Réponse de connexion brute reçue', 'AuthService.login', {
+        responseData: response.data
+      });
       
       return this.processLoginResponse(response.data);
       
     } catch (error: unknown) {
-      console.error('Login failed:', handleApiError(error));
+      logger.error('Échec de la connexion', 'AuthService.login', error);
       throw error;
     }
   }
 
-//TRAITEMENT COMMUN DES RÉPONSES LOGIN
-// TRAITEMENT COMMUN DES RÉPONSES LOGIN
-private processLoginResponse(responseData: unknown): LoginResponse {
-  if (typeof responseData !== 'object' || responseData === null) {
-    throw new Error('Réponse invalide du serveur');
-  }
-
-  const data = responseData as Record<string, unknown>;
-  
-  console.log('🔍 Response data keys:', Object.keys(data));
-  console.log('🔍 Response data:', JSON.stringify(data, null, 2));
-
-  // FORMAT 1: ApiResponse wrappée
-  if ('data' in data && typeof data.data === 'object' && data.data !== null) {
-    const loginData = data.data as Record<string, unknown>;
-    
-    console.log('🔍 LoginData keys:', Object.keys(loginData));
-    console.log('🔍 Has jwtToken:', 'jwtToken' in loginData);
-    console.log('🔍 Has user:', 'user' in loginData);
-    
-    // Vérification plus robuste
-    if ('jwtToken' in loginData && 'user' in loginData && loginData.user) {
-      console.log('Format LoginResponseDto (ApiResponse wrappée) détecté');
-      
-      const userData = loginData.user as Record<string, unknown>;
-      const jwtToken = loginData.jwtToken as string;
-      const refreshToken = (loginData.refreshToken as string) || '';
-      const expiresIn = (loginData.expiresIn as number) || 900;
-      
-      console.log('🔍 User data:', JSON.stringify(userData, null, 2));
-      console.log('🔍 JWT token length:', jwtToken?.length);
-      
-      // Extraire l'ID depuis userData
-      const userId = (userData.customerId as number) || 
-                     (userData.id as number) || 
-                     (userData.userId as number) || 
-                     0;
-      
-      //Extraction des rôles 
-let roles: string[] = ['ROLE_USER'];
-
-if (userData.roleSet && Array.isArray(userData.roleSet)) {
-  const firstItem = userData.roleSet[0];
-  
-  // Si c'est un array de strings simples
-  if (typeof firstItem === 'string') {
-    roles = userData.roleSet as string[];
-  } 
-  // Si c'est un array d'objets complexes
-  else if (typeof firstItem === 'object' && firstItem !== null) {
-    roles = (userData.roleSet as Array<{name?: {name?: string}}>).map(role => {
-      const roleName = role.name?.name || 'USER';
-      return roleName.startsWith('ROLE_') ? roleName : `ROLE_${roleName}`;
-    });
-  }
-} else if (userData.roles) {
-  // Format: "ROLE_ADMIN,ROLE_USER" ou ["ROLE_ADMIN", "ROLE_USER"]
-  if (typeof userData.roles === 'string') {
-    roles = userData.roles.split(',').map(r => r.trim());
-  } else if (Array.isArray(userData.roles)) {
-    roles = userData.roles as string[];
-  }
-}
-
-console.log('🔍 Extracted roles:', roles);
-      
-      // Construction de l'objet User
-      const user: User = {
-        id: userId,
-        username: (userData.email as string) || (userData.username as string) || '',
-        email: (userData.email as string) || '',
-        name: (userData.name as string) || '',
-        mobileNumber: (userData.mobileNumber as string) || '',
-        roles: roles,
-        enabled: true,
-        accountNonExpired: true,
-        credentialsNonExpired: true,
-        accountNonLocked: true,
-        address: userData.address as UserAddress | undefined
-      };
-
-      console.log('User object created:', {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        roles: user.roles
+  // TRAITEMENT COMMUN DES RÉPONSES LOGIN
+  private processLoginResponse(responseData: unknown): LoginResponse {
+    if (typeof responseData !== 'object' || responseData === null) {
+      logger.error('Réponse serveur invalide', 'AuthService.processLoginResponse', {
+        responseType: typeof responseData
       });
-      
-      console.log('JWT token:', jwtToken.substring(0, 20) + '...');
-
-      const result: LoginResponse = {
-        message: (loginData.message as string) || 'Connexion réussie',
-        user,
-        jwtToken,
-        refreshToken,
-        expiresIn
-      };
-      
-      console.log('LoginResponse ready:', {
-        hasUser: !!result.user,
-        hasJwt: !!result.jwtToken,
-        jwtLength: result.jwtToken.length,
-        userRoles: result.user.roles
-      });
-
-      return result;
+      throw new Error('Réponse invalide du serveur');
     }
+
+    const data = responseData as Record<string, unknown>;
+    
+    logger.debug('Analyse de la réponse de connexion', 'AuthService.processLoginResponse', {
+      dataKeys: Object.keys(data),
+      dataStructure: data
+    });
+
+    // FORMAT 1: ApiResponse wrappée
+    if ('data' in data && typeof data.data === 'object' && data.data !== null) {
+      const loginData = data.data as Record<string, unknown>;
+      
+      logger.debug('Données de connexion analysées', 'AuthService.processLoginResponse', {
+        loginDataKeys: Object.keys(loginData),
+        hasJwtToken: 'jwtToken' in loginData,
+        hasUser: 'user' in loginData
+      });
+      
+      // Vérification plus robuste
+      if ('jwtToken' in loginData && 'user' in loginData && loginData.user) {
+        logger.info('Format LoginResponseDto détecté', 'AuthService.processLoginResponse');
+        
+        const userData = loginData.user as Record<string, unknown>;
+        const jwtToken = loginData.jwtToken as string;
+        const refreshToken = (loginData.refreshToken as string) || '';
+        const expiresIn = (loginData.expiresIn as number) || 900;
+        
+        // Extraire l'ID depuis userData
+        const userId = (userData.customerId as number) || 
+                       (userData.id as number) || 
+                       (userData.userId as number) || 
+                       0;
+        
+        // Extraction des rôles 
+        let roles: string[] = ['ROLE_USER'];
+
+        if (userData.roleSet && Array.isArray(userData.roleSet)) {
+          const firstItem = userData.roleSet[0];
+          
+          // Si c'est un array de strings simples
+          if (typeof firstItem === 'string') {
+            roles = userData.roleSet as string[];
+          } 
+          // Si c'est un array d'objets complexes
+          else if (typeof firstItem === 'object' && firstItem !== null) {
+            roles = (userData.roleSet as Array<{name?: {name?: string}}>).map(role => {
+              const roleName = role.name?.name || 'USER';
+              return roleName.startsWith('ROLE_') ? roleName : `ROLE_${roleName}`;
+            });
+          }
+        } else if (userData.roles) {
+          // Format: "ROLE_ADMIN,ROLE_USER" ou ["ROLE_ADMIN", "ROLE_USER"]
+          if (typeof userData.roles === 'string') {
+            roles = userData.roles.split(',').map(r => r.trim());
+          } else if (Array.isArray(userData.roles)) {
+            roles = userData.roles as string[];
+          }
+        }
+
+        logger.debug('Rôles extraits', 'AuthService.processLoginResponse', { roles });
+        
+        // Construction de l'objet User
+        const user: User = {
+          id: userId,
+          username: (userData.email as string) || (userData.username as string) || '',
+          email: (userData.email as string) || '',
+          name: (userData.name as string) || '',
+          mobileNumber: (userData.mobileNumber as string) || '',
+          roles: roles,
+          enabled: true,
+          accountNonExpired: true,
+          credentialsNonExpired: true,
+          accountNonLocked: true,
+          address: userData.address as UserAddress | undefined
+        };
+
+        logger.debug('Objet utilisateur créé', 'AuthService.processLoginResponse', {
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+          roles: user.roles
+        });
+
+        const result: LoginResponse = {
+          message: (loginData.message as string) || 'Connexion réussie',
+          user,
+          jwtToken,
+          refreshToken,
+          expiresIn
+        };
+        
+        logger.info('Réponse de connexion prête', 'AuthService.processLoginResponse', {
+          hasUser: !!result.user,
+          hasJwt: !!result.jwtToken,
+          jwtLength: result.jwtToken.length,
+          userRoles: result.user.roles
+        });
+
+        return result;
+      }
+    }
+    
+    // FORMAT INCONNU
+    logger.error('Format de réponse non supporté', 'AuthService.processLoginResponse', {
+      receivedData: data
+    });
+    throw new Error('Format de réponse non supporté');
   }
-  
-  // FORMAT INCONNU
-  console.error('Format de réponse non supporté');
-  console.error('Data received:', JSON.stringify(data, null, 2));
-  throw new Error('Format de réponse non supporté');
-}
 
   // REGISTER - Inscription utilisateur
   async register(data: RegisterData): Promise<RegisterResponse> {
     try {
-      console.log('📝 Registration attempt for:', data.email);
+      logger.info('Tentative d\'inscription', 'AuthService.register', {
+        email: data.email
+      });
      
       const response = await apiClient.post<RegisterResponse>('/auth/register', data);
-      console.log('Registration successful');
+      logger.info('Inscription réussie', 'AuthService.register');
       
       return response.data;
       
     } catch (error: unknown) {
-      console.error('Registration failed:', handleApiError(error));
+      logger.error('Échec de l\'inscription', 'AuthService.register', error);
       throw error;
     }
   }
@@ -194,19 +202,17 @@ console.log('🔍 Extracted roles:', roles);
   // LOGOUT - Déconnexion 
   async logout(): Promise<void> {
     try {
-      console.log('Logout attempt');
+      logger.info('Tentative de déconnexion', 'AuthService.logout');
       await apiClient.post('/auth/logout', {});
-      console.log('Logout successful');
+      logger.info('Déconnexion réussie', 'AuthService.logout');
       
     } catch (error: unknown) {
-      console.error('Logout failed:', handleApiError(error));
+      logger.error('Échec de la déconnexion', 'AuthService.logout', error);
       throw error;
     }
   }
 
-  /**
-   * LOGIN ACTION - Pour compatibilité React Router
-   */
+  // LOGIN ACTION - Pour compatibilité React Router
   async loginAction(credentials: LoginCredentials): Promise<LoginActionResponse> {
     try {
       const response = await this.login(credentials);
@@ -229,7 +235,10 @@ console.log('🔍 Extracted roles:', roles);
     const apiError = error as ApiError;
     const status = apiError.response?.status;
 
-    console.log('🔍 Detailed error response:', apiError.response?.data);
+    logger.debug('Analyse détaillée de l\'erreur d\'authentification', 'AuthService.handleAuthError', {
+      status,
+      responseData: apiError.response?.data
+    });
 
     // EXTRACTION DES ERREURS DE VALIDATION DÉTAILLÉES
     if (status === 400) {
@@ -239,7 +248,9 @@ console.log('🔍 Extracted roles:', roles);
       if (responseData && typeof responseData === 'object' && 'errors' in responseData) {
         const validationErrors = responseData.errors as Record<string, string>;
         
-        console.log('🔍 Validation errors by field:', validationErrors);
+        logger.debug('Erreurs de validation par champ détectées', 'AuthService.handleAuthError', {
+          validationErrors
+        });
         
         // EXTRACTION DES MESSAGES SPÉCIFIQUES
         if (validationErrors.password) {
@@ -273,9 +284,6 @@ console.log('🔍 Extracted roles:', roles);
       }
       
       // GESTION DES ERREURS DE MOT DE PASSE SPÉCIFIQUES
-      // Basé sur les logs Spring
-      // - Taille : "Le mot de passe doit contenir entre 8 et 128 caractères"
-      // - Pattern : "Doit contenir majuscule, minuscule, chiffre, caractère spécial"
       return {
         success: false,
         errors: { 
@@ -293,7 +301,7 @@ console.log('🔍 Extracted roles:', roles);
       };
     }
 
-    // ✅ ERREUR GÉNÉRIQUE
+    // ERREUR GÉNÉRIQUE
     return {
       success: false,
       errors: { 
@@ -304,7 +312,9 @@ console.log('🔍 Extracted roles:', roles);
 
   // Traduit les erreurs de mot de passe spécifiques
   private translatePasswordError(passwordError: string): string {
-    console.log('🔍 Password error to translate:', passwordError);
+    logger.debug('Traduction de l\'erreur de mot de passe', 'AuthService.translatePasswordError', {
+      originalError: passwordError
+    });
     
     // DÉTECTION DES ERREURS SPÉCIFIQUES
     if (passwordError.includes('8') && passwordError.includes('128')) {
@@ -330,7 +340,7 @@ console.log('🔍 Extracted roles:', roles);
     return passwordError;
   }
 
-  //GESTION DES ERREURS D'INSCRIPTION
+  // GESTION DES ERREURS D'INSCRIPTION
   private handleRegisterError(error: unknown): RegisterActionResponse {
     const errorInfo = handleApiError(error);
     const apiError = error as ApiError;
@@ -377,12 +387,12 @@ console.log('🔍 Extracted roles:', roles);
       return Date.now() >= (exp * 1000) - 30000;
       
     } catch (error: unknown) {
-      console.error('Error checking token expiration:', error);
+      logger.error('Erreur lors de la vérification de l\'expiration du token', 'AuthService.isTokenExpired', error);
       return true;
     }
   }
 
- // Extrait les informations utilisateur du JWT
+  // Extrait les informations utilisateur du JWT
   getUserFromToken(token: string): User {
     try {
       const parts = token.split('.');
@@ -409,12 +419,12 @@ console.log('🔍 Extracted roles:', roles);
       };
       
     } catch (error: unknown) {
-      console.error('Failed to decode JWT:', error);
+      logger.error('Échec du décodage du JWT', 'AuthService.getUserFromToken', error);
       throw new Error('Invalid JWT token');
     }
   }
 
-  //Parse les rôles depuis le JWT
+  // Parse les rôles depuis le JWT
   private parseRoles(roles: unknown): string[] {
     if (!roles) return ['ROLE_USER'];
     

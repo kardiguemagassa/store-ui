@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import PageTitle from "../../../shared/components/PageTitle";
 import { useAppDispatch, useAppSelector } from "../hooks/redux";
 import { registerAsync } from "../store/authSlice";
-
+import { logger } from "../../../shared/types/errors.types";
 
 // Types locaux
 interface RegisterFormData {
@@ -16,7 +16,10 @@ interface RegisterFormData {
 }
 
 // Type pour la visibilité des mots de passe
-interface PasswordVisibility {password: boolean;confirmPwd: boolean;}
+interface PasswordVisibility {
+  password: boolean;
+  confirmPwd: boolean;
+}
 
 export default function Register() {
   const dispatch = useAppDispatch();
@@ -107,7 +110,9 @@ export default function Register() {
       return;
     }
 
-    console.log('📝 Registration attempt for:', formData.email);
+    logger.info('Tentative d\'inscription', 'Register', {
+      email: formData.email
+    });
 
     try {
       const result = await dispatch(registerAsync({
@@ -119,13 +124,15 @@ export default function Register() {
       }));
 
       if (registerAsync.fulfilled.match(result)) {
-        console.log('Registration successful');
+        logger.info('Inscription réussie', 'Register');
         toast.success("Inscription réussie! Vous pouvez vous connecter.");
         
         // Redirection vers la page de login
         navigate("/login", { replace: true });
       } else if (registerAsync.rejected.match(result)) {
-        console.log('Registration failed:', result.payload);
+        logger.warn('Échec de l\'inscription', 'Register', null, {
+          error: result.payload
+        });
         
         const errorMessage = result.payload as string;
         const fieldErrors: Record<string, string> = {};
@@ -169,7 +176,7 @@ export default function Register() {
         toast.error(toastMessage);
       }
     } catch (err) {
-      console.error('💥 Registration error:', err);
+      logger.error('Erreur inattendue lors de l\'inscription', 'Register', err);
       toast.error('Erreur inattendue lors de l\'inscription');
     } finally {
       setIsLoading(false);
@@ -214,7 +221,7 @@ export default function Register() {
   const textFieldStyle = "w-full px-4 py-2 text-base border rounded-md transition border-primary dark:border-light focus:ring focus:ring-dark dark:focus:ring-lighter focus:outline-none text-gray-800 dark:text-lighter bg-white dark:bg-gray-600 placeholder-gray-400 dark:placeholder-gray-300";
   const errorInputStyle = "border-red-500 focus:ring-red-200 dark:focus:ring-red-800";
 
-  //STYLE POUR LE BOUTON DE VISIBILITÉ
+  // STYLE POUR LE BOUTON DE VISIBILITÉ
   const visibilityButtonStyle = "absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition-colors duration-200";
 
   return (

@@ -1,24 +1,15 @@
-// src/features/auth/store/authSlice.ts
-
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { User, AuthState, LoginCredentials, RegisterData } from '../types/auth.types';
 import { authService } from '../services/authService';
-import { getErrorMessage } from '../../../shared/types/errors.types';
+import { getErrorMessage, logger } from '../../../shared/types/errors.types';
 
-
-// ============================================
 // TYPES LOCAUX
-// ============================================
-
 interface LoginSuccessPayload {
   user: User;
   jwtToken: string;
 }
 
-// ============================================
 // INITIAL STATE
-// ============================================
-
 const initialState: AuthState = {
   user: null,
   jwtToken: null,
@@ -27,11 +18,10 @@ const initialState: AuthState = {
   error: null,
 };
 
-// ============================================
 // ASYNC THUNKS - VERSION CORRIGÉE
-// ============================================
-
-export const loginAsync = createAsyncThunk('auth/login',async (credentials: LoginCredentials, { rejectWithValue }) => {
+export const loginAsync = createAsyncThunk(
+  'auth/login',
+  async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
       return {
@@ -39,9 +29,9 @@ export const loginAsync = createAsyncThunk('auth/login',async (credentials: Logi
         jwtToken: response.jwtToken
       };
     } catch (error: unknown) {
-      //getErrorMessage POUR LES MESSAGES DÉTAILLÉS
+      // CORRECTION : getErrorMessage accepte unknown
       const errorMessage = getErrorMessage(error);
-      console.log('🔍 Login error details:', error); // Pour debug
+      logger.error('Erreur de connexion', 'loginAsync', error);
       return rejectWithValue(errorMessage);
     }
   }
@@ -57,8 +47,9 @@ export const registerAsync = createAsyncThunk(
         status: response.status
       };
     } catch (error: unknown) {
-      // ✅ UTILISER getErrorMessage POUR LES MESSAGES DÉTAILLÉS
+      // CORRECTION : getErrorMessage accepte unknown
       const errorMessage = getErrorMessage(error);
+      logger.error('Erreur d\'inscription', 'registerAsync', error);
       return rejectWithValue(errorMessage);
     }
   }
@@ -71,16 +62,13 @@ export const logoutAsync = createAsyncThunk(
       await authService.logout();
       return { success: true };
     } catch (error: unknown) {
-      console.warn('Logout API call failed, continuing local logout:', error);
-      return rejectWithValue('Logout failed but local session cleared');
+      logger.warn('Échec de l\'appel API de déconnexion, continuation de la déconnexion locale', 'logoutAsync', error);
+      return rejectWithValue('La déconnexion a échoué mais la session locale a été effacée');
     }
   }
 );
 
-// ============================================
 // SLICE
-// ============================================
-
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -163,7 +151,9 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(logoutAsync.rejected, (state, action) => {
-        console.warn('Logout rejected but session cleared:', action.payload);
+        logger.warn('Déconnexion rejetée mais session effacée', 'authSlice', null, {
+          payload: action.payload
+        });
         state.user = null;
         state.jwtToken = null;
         state.isAuthenticated = false;
