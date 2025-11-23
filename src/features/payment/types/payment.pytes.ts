@@ -3,7 +3,6 @@ import type { User } from "../../auth/types/auth.types";
 import type { OrderRequest, CreateOrderResult, OrderValidationError } from "../../orders/types/orders.types";
 export type { OrderRequest, CreateOrderResult, OrderValidationError };
 
-
 export interface ElementErrors {
   cardNumber: string;
   cardExpiry: string;
@@ -36,13 +35,18 @@ export interface PaymentIntentResponse {
 
 // TYPES PROCESS PAYMENT
 
-// ype pour les éléments du panier
+// Type pour les éléments du panier - CORRIGÉ
 export interface CartItem {
   productId: number;
   quantity: number;
   price: number;
   name?: string;
-  imageUrl?: string;
+  description?: string;
+  imageUrl?: string; // string | undefined (pas null)
+  categoryId?: number;
+  categoryName?: string;
+  sku?: string;
+  stockQuantity?: number;
 }
 
 // Paramètres pour processPayment

@@ -133,31 +133,3 @@ export default function CartTable() {
     </div>
   );
 }
-
-/**
- * ✅ CHANGEMENTS v3.0:
- * 
- * 1. Import IMAGES_CONFIG et handleImageError ✅
- * 2. Conversion imageUrl avec nullish coalescing (??) ✅
- * 3. getProductImage() retourne toujours string ✅
- * 4. Fallback automatique sur erreur image ✅
- * 5. Type safety complet
- * 
- * POURQUOI ?? AU LIEU DE || :
- * 
- * item.imageUrl ?? undefined
- * - Si imageUrl est null → undefined
- * - Si imageUrl est undefined → undefined
- * - Si imageUrl est "" → "" (string vide conservée)
- * 
- * item.imageUrl || undefined
- * - Si imageUrl est "" → undefined (problématique car "" est falsy)
- * 
- * FLOW DES IMAGES:
- * 
- * 1. item.imageUrl (string | null | undefined)
- * 2. ?? undefined (normalise null → undefined)
- * 3. IMAGES_CONFIG.getProductImage(...)
- * 4. → string (toujours !)
- * 5. img src={imageUrl} (React accepte)
- */

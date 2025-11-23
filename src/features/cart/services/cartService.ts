@@ -1,45 +1,20 @@
-/**
- * CART SERVICE - API GESTION PANIER
- * 
- * Service centralisé pour les opérations du panier.
- * Synchronisation avec le backend (optionnel).
- * 
- * VERSION 1.0 - PRODUCTION READY
- * 
- * Note: Le panier est principalement géré en LOCAL (Redux Persist)
- * mais ce service permet la synchronisation serveur si besoin.
- * 
- * @location src/features/cart/services/cartService.ts
- */
-
 import apiClient from '../../../shared/api/apiClient';
+import { getErrorMessage, logger } from '../../../shared/types/errors.types';
+import type { CartItem } from '../../payment/types/payment.pytes';
 
-import type { CartItem } from '../../../shared/types/cart';
-import { getErrorMessage } from '../../../shared/types/errors.types';
 
-// ============================================
-// TYPES
-// ============================================
-
-/**
- * Requête de synchronisation du panier
- */
 export interface SyncCartRequest {
   items: CartItem[];
 }
 
-/**
- * Réponse de synchronisation
- */
+// Réponse de synchronisation
 export interface SyncCartResponse {
   success: boolean;
   message: string;
-  updatedItems?: CartItem[]; // Items mis à jour depuis le serveur
+  updatedItems?: CartItem[]; 
 }
 
-/**
- * Vérification de disponibilité produit
- */
+// Vérification de disponibilité produit
 export interface ProductAvailability {
   productId: number;
   available: boolean;
@@ -48,36 +23,24 @@ export interface ProductAvailability {
   isActive: boolean;
 }
 
-// ============================================
-// SYNCHRONISATION PANIER (Optionnel)
-// ============================================
-
-/**
- * ✅ Synchronise le panier avec le backend
- * 
- * Utilité:
- * - Vérifier que les produits sont toujours disponibles
- * - Vérifier que les prix n'ont pas changé
- * - Vérifier le stock
- * 
- * @param items - Articles du panier local
- * @returns Réponse de synchronisation
- */
+// Synchronise le panier avec le backend
 export async function syncCart(items: CartItem[]): Promise<SyncCartResponse> {
   try {
-    console.log('🔄 Syncing cart with backend...', items.length);
+    logger.info('Synchronisation du panier avec le backend', 'syncCart', {
+      itemsCount: items.length
+    });
 
-    const response = await apiClient.post<SyncCartResponse>(
-      '/api/v1/cart/sync',
-      { items }
-    );
+    const response = await apiClient.post<SyncCartResponse>('/api/v1/cart/sync',{ items });
 
-    console.log('✅ Cart synced:', response.data);
+    logger.info('Panier synchronisé avec succès', 'syncCart', {
+      success: response.data.success,
+      updatedItemsCount: response.data.updatedItems?.length || 0
+    });
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error('❌ Error syncing cart:', getErrorMessage(error));
+    logger.error('Erreur lors de la synchronisation du panier', 'syncCart', error);
     
     return {
       success: false,
@@ -86,68 +49,53 @@ export async function syncCart(items: CartItem[]): Promise<SyncCartResponse> {
   }
 }
 
-/**
- * ✅ Sauvegarde le panier sur le serveur (pour utilisateur connecté)
- * 
- * @param items - Articles du panier
- */
+// Sauvegarde le panier sur le serveur (pour utilisateur connecté)
 export async function saveCartToServer(items: CartItem[]): Promise<void> {
   try {
-    console.log('💾 Saving cart to server...', items.length);
+    logger.info('Sauvegarde du panier sur le serveur', 'saveCartToServer', {
+      itemsCount: items.length
+    });
 
     await apiClient.post('/api/v1/cart', { items });
 
-    console.log('✅ Cart saved to server');
+    logger.info('Panier sauvegardé sur le serveur avec succès', 'saveCartToServer');
 
   } catch (error: unknown) {
-    console.error('❌ Error saving cart:', getErrorMessage(error));
+    logger.error('Erreur lors de la sauvegarde du panier', 'saveCartToServer', error);
     throw error;
   }
 }
 
-/**
- * ✅ Récupère le panier depuis le serveur (pour utilisateur connecté)
- * 
- * @returns Articles du panier sauvegardés
- */
+// Récupère le panier depuis le serveur (pour utilisateur connecté)
 export async function loadCartFromServer(): Promise<CartItem[]> {
   try {
-    console.log('📦 Loading cart from server...');
+    logger.info('Chargement du panier depuis le serveur', 'loadCartFromServer');
 
     const response = await apiClient.get<{ items: CartItem[] }>('/api/v1/cart');
 
-    console.log('✅ Cart loaded from server:', response.data.items.length);
+    logger.info('Panier chargé depuis le serveur avec succès', 'loadCartFromServer', {
+      itemsCount: response.data.items.length
+    });
 
     return response.data.items;
 
   } catch (error: unknown) {
-    console.error('❌ Error loading cart:', getErrorMessage(error));
+    logger.error('Erreur lors du chargement du panier', 'loadCartFromServer', error);
     return []; // Retourne un panier vide en cas d'erreur
   }
 }
 
-// ============================================
-// VALIDATION PRODUITS
-// ============================================
-
-/**
- * ✅ Vérifie la disponibilité d'un produit
- * 
- * @param productId - ID du produit
- * @returns Disponibilité du produit
- */
+// Vérifie la disponibilité d'un produit
 export async function checkProductAvailability(
   productId: number
 ): Promise<ProductAvailability> {
   try {
-    const response = await apiClient.get<ProductAvailability>(
-      `/api/v1/products/${productId}/availability`
-    );
+    const response = await apiClient.get<ProductAvailability>(`/api/v1/products/${productId}/availability`);
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error(`❌ Error checking product ${productId}:`, getErrorMessage(error));
+    logger.error(`Erreur lors de la vérification du produit ${productId}`, 'checkProductAvailability', error);
     
     // Par défaut, considérer comme indisponible
     return {
@@ -160,22 +108,16 @@ export async function checkProductAvailability(
   }
 }
 
-/**
- * ✅ Vérifie la disponibilité de plusieurs produits
- * 
- * @param productIds - IDs des produits
- * @returns Map de disponibilités
- */
+// Vérifie la disponibilité de plusieurs produits
 export async function checkMultipleProductsAvailability(
   productIds: number[]
 ): Promise<Map<number, ProductAvailability>> {
   try {
-    console.log('🔍 Checking availability for products:', productIds);
+    logger.info('Vérification de la disponibilité des produits', 'checkMultipleProductsAvailability', {
+      productIdsCount: productIds.length
+    });
 
-    const response = await apiClient.post<ProductAvailability[]>(
-      '/api/v1/products/availability/batch',
-      { productIds }
-    );
+    const response = await apiClient.post<ProductAvailability[]>('/api/v1/products/availability/batch',{ productIds });
 
     // Convertir en Map pour accès rapide
     const availabilityMap = new Map<number, ProductAvailability>();
@@ -183,38 +125,26 @@ export async function checkMultipleProductsAvailability(
       availabilityMap.set(item.productId, item);
     });
 
-    console.log('✅ Availability checked for', availabilityMap.size, 'products');
+    logger.info('Disponibilité des produits vérifiée avec succès', 'checkMultipleProductsAvailability', {
+      productsChecked: availabilityMap.size
+    });
 
     return availabilityMap;
 
   } catch (error: unknown) {
-    console.error('❌ Error checking products:', getErrorMessage(error));
+    logger.error('Erreur lors de la vérification des produits', 'checkMultipleProductsAvailability', error);
     return new Map();
   }
 }
 
-// ============================================
-// VALIDATION PANIER
-// ============================================
-
-/**
- * ✅ Valide tout le panier avant checkout
- * 
- * Vérifie:
- * - Disponibilité des produits
- * - Stock suffisant
- * - Prix à jour
- * 
- * @param items - Articles du panier
- * @returns Liste des problèmes détectés
- */
+// Valide tout le panier avant checkout
 export async function validateCart(items: CartItem[]): Promise<{
   isValid: boolean;
   issues: string[];
   updatedItems?: CartItem[];
 }> {
   try {
-    console.log('✅ Validating cart...', items.length);
+    logger.info('Validation du panier', 'validateCart', {itemsCount: items.length});
 
     const productIds = items.map(item => item.productId);
     const availabilityMap = await checkMultipleProductsAvailability(productIds);
@@ -258,14 +188,22 @@ export async function validateCart(items: CartItem[]): Promise<{
       updatedItems.push(item);
     }
 
-    return {
+    const validationResult = {
       isValid: issues.length === 0,
       issues,
       updatedItems: issues.length > 0 ? updatedItems : undefined
     };
 
+    logger.info('Validation du panier terminée', 'validateCart', {
+      isValid: validationResult.isValid,
+      issuesCount: validationResult.issues.length,
+      updatedItemsCount: validationResult.updatedItems?.length || 0
+    });
+
+    return validationResult;
+
   } catch (error: unknown) {
-    console.error('❌ Error validating cart:', getErrorMessage(error));
+    logger.error('Erreur lors de la validation du panier', 'validateCart', error);
     
     return {
       isValid: false,
@@ -274,43 +212,30 @@ export async function validateCart(items: CartItem[]): Promise<{
   }
 }
 
-// ============================================
-// CALCUL FRAIS DE PORT (Optionnel)
-// ============================================
 
 /**
- * ✅ Calcule les frais de port
+ * Calcule les frais de port
  * 
  * @param total - Total du panier
  * @param country - Pays de livraison
  * @returns Frais de port
  */
-export async function calculateShipping(
-  total: number,
-  country: string = 'FR'
-): Promise<number> {
+export async function calculateShipping(total: number,country: string = 'FR'): Promise<number> {
   try {
-    const response = await apiClient.post<{ shipping: number }>(
-      '/api/v1/cart/shipping',
-      { total, country }
-    );
+    const response = await apiClient.post<{ shipping: number }>('/api/v1/cart/shipping',{ total, country });
 
     return response.data.shipping;
 
   } catch (error: unknown) {
-    console.error('❌ Error calculating shipping:', getErrorMessage(error));
+    logger.error('Erreur lors du calcul des frais de port', 'calculateShipping', error);
     
     // Frais de port par défaut
     return total >= 50 ? 0 : 5.99;
   }
 }
 
-// ============================================
-// COUPONS / CODES PROMO (Optionnel)
-// ============================================
-
 /**
- * ✅ Applique un code promo
+ * Applique un code promo
  * 
  * @param code - Code promo
  * @param total - Total du panier
@@ -326,7 +251,7 @@ export async function applyCoupon(
   message: string;
 }> {
   try {
-    console.log('🎟️ Applying coupon:', code);
+    logger.info('Application du code promo', 'applyCoupon', { code });
 
     const response = await apiClient.post<{
       success: boolean;
@@ -335,12 +260,16 @@ export async function applyCoupon(
       message: string;
     }>('/api/v1/cart/coupon', { code, total });
 
-    console.log('✅ Coupon applied:', response.data);
+    logger.info('Code promo appliqué avec succès', 'applyCoupon', {
+      success: response.data.success,
+      discount: response.data.discount,
+      newTotal: response.data.newTotal
+    });
 
     return response.data;
 
   } catch (error: unknown) {
-    console.error('❌ Error applying coupon:', getErrorMessage(error));
+    logger.error('Erreur lors de l\'application du code promo', 'applyCoupon', error);
     
     return {
       success: false,
@@ -351,10 +280,7 @@ export async function applyCoupon(
   }
 }
 
-// ============================================
 // EXPORT PAR DÉFAUT
-// ============================================
-
 const cartService = {
   // Synchronisation
   syncCart,
@@ -372,40 +298,3 @@ const cartService = {
 };
 
 export default cartService;
-
-/**
- * ✅ EXEMPLES D'UTILISATION:
- * 
- * // Valider le panier avant checkout
- * const validation = await validateCart(cartItems);
- * if (!validation.isValid) {
- *   console.error('Issues:', validation.issues);
- * }
- * 
- * // Synchroniser avec le backend
- * await syncCart(cartItems);
- * 
- * // Vérifier disponibilité
- * const availability = await checkProductAvailability(productId);
- * if (!availability.available) {
- *   console.log('Produit indisponible');
- * }
- * 
- * // Calculer frais de port
- * const shipping = await calculateShipping(total, 'FR');
- * 
- * // Appliquer code promo
- * const result = await applyCoupon('PROMO10', total);
- * if (result.success) {
- *   console.log(`Réduction: ${result.discount}€`);
- * }
- * 
- * NOTES:
- * - Ce service est OPTIONNEL
- * - Le panier fonctionne déjà avec Redux Persist
- * - Utilisez ces fonctions pour:
- *   * Synchronisation serveur
- *   * Validation avant checkout
- *   * Calculs côté serveur
- *   * Codes promo
- */
