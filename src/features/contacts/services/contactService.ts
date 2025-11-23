@@ -1,7 +1,8 @@
 import apiClient from '../../../shared/api/apiClient';
 import { 
   handleApiError, 
-  getErrorMessage 
+  getErrorMessage,
+  logger 
 } from '../../../shared/types/errors.types';
 import type { ActionFunctionArgs } from "react-router-dom";
 import type { 
@@ -14,15 +15,14 @@ import type {
 } from '../types/contactService.types';
 import type { ContactInfoData } from '../types/contact.types';
 
-
 function mapBackendToFrontend(backendData: BackendContactMessage): ContactMessage {
-  console.log('Mapping backend data:', backendData);
+  logger.debug('Mapping backend data', 'contactService', { backendData });
   
   const mappedData: ContactMessage = {
     contactId: backendData.contact_id || backendData.contactId,
     name: backendData.name,
     email: backendData.email,
-    mobileNumber: backendData.mobile_number || backendData.mobileNumber || '', // Fallback pour eviter "N/A"
+    mobileNumber: backendData.mobile_number || backendData.mobileNumber || '',
     message: backendData.message,
     status: backendData.status,
     createdAt: backendData.created_at || backendData.createdAt,
@@ -31,13 +31,12 @@ function mapBackendToFrontend(backendData: BackendContactMessage): ContactMessag
     updatedBy: backendData.updated_by || backendData.updatedBy
   };
   
-  console.log('Mapped to frontend:', mappedData);
+  logger.debug('Data mapped to frontend', 'contactService', { mappedData });
   return mappedData;
 }
 
-
 function mapFrontendToBackend(frontendData: ContactData): Record<string, string> {
-  console.log('Mapping frontend to backend - Input:', frontendData);
+  logger.debug('Mapping frontend to backend', 'contactService', { frontendData });
   
   const backendData = {
     name: frontendData.name,
@@ -46,23 +45,25 @@ function mapFrontendToBackend(frontendData: ContactData): Record<string, string>
     message: frontendData.message
   };
   
-  console.log('Mapping frontend to backend - Output:', backendData);
+  logger.debug('Data mapped to backend', 'contactService', { backendData });
   return backendData;
 }
 
 // LOADER POUR LES INFORMATIONS DE CONTACT (DYNAMIQUE)
 export async function contactInfoLoader(): Promise<ContactInfoData> {
   try {
-    console.log('[CONTACT INFO LOADER] Fetching contact information from backend...');
+    logger.info('Chargement des informations de contact', 'contactInfoLoader');
   
     const response = await apiClient.get<ContactInfoData>('/contacts');
     
-    console.log('[CONTACT INFO LOADER] Contact info loaded from backend:', response.data);
+    logger.info('Informations de contact chargées', 'contactInfoLoader', {
+      dataReceived: !!response.data
+    });
     
     return response.data;
     
   } catch (error: unknown) {
-    console.error('[CONTACT INFO LOADER] Failed to fetch contact info:', error);
+    logger.error('Échec du chargement des informations de contact', 'contactInfoLoader', error);
     
     // FALLBACK AVEC LES VRAIES VALEURS DE VOTRE application.yml
     const fallbackInfo: ContactInfoData = {
@@ -71,16 +72,15 @@ export async function contactInfoLoader(): Promise<ContactInfoData> {
       address: '8 Av de la fontaine rene 95160 Montmorency'
     };
     
-    console.log('[CONTACT INFO LOADER] Using fallback contact info:', fallbackInfo);
+    logger.info('Utilisation des informations de contact de fallback', 'contactInfoLoader', { fallbackInfo });
     return fallbackInfo;
   }
 }
 
-
 // CONTACTS PUBLIC
 export async function submitContact(contactData: ContactData): Promise<ContactSubmitResult> {
   try {
-    console.log('Submitting contact form:', {
+    logger.info('Soumission du formulaire de contact', 'submitContact', {
       name: contactData.name,
       email: contactData.email,
       mobileNumber: contactData.mobileNumber 
@@ -88,9 +88,11 @@ export async function submitContact(contactData: ContactData): Promise<ContactSu
 
     const backendData = mapFrontendToBackend(contactData);
     
-    const response = await apiClient.post<BackendContactMessage>('/contacts',backendData);
+    const response = await apiClient.post<BackendContactMessage>('/contacts', backendData);
 
-    console.log(' Contact form submitted:', response.data);
+    logger.info('Formulaire de contact soumis avec succès', 'submitContact', {
+      contactId: response.data.contact_id
+    });
 
     return {
       success: true,
@@ -98,7 +100,7 @@ export async function submitContact(contactData: ContactData): Promise<ContactSu
     };
 
   } catch (error: unknown) {
-    console.error('Error submitting contact form:', error);
+    logger.error('Erreur lors de la soumission du formulaire de contact', 'submitContact', error);
     
     const errorInfo = handleApiError(error);
     
@@ -110,11 +112,10 @@ export async function submitContact(contactData: ContactData): Promise<ContactSu
   }
 }
 
-
 // MESSAGES ADMIN
 export async function getMessages(filters?: MessageFilters): Promise<ContactMessage[]> {
   try {
-    console.log('Fetching admin messages...');
+    logger.info('Récupération des messages admin', 'getMessages', { filters });
 
     const params: Record<string, string> = {};
 
@@ -128,7 +129,7 @@ export async function getMessages(filters?: MessageFilters): Promise<ContactMess
       { params }
     );
 
-    console.log('Full API response:', response.data);
+    logger.debug('Réponse API complète reçue', 'getMessages', { responseData: response.data });
 
     let messagesData = response.data;
     
@@ -136,77 +137,83 @@ export async function getMessages(filters?: MessageFilters): Promise<ContactMess
       messagesData = messagesData.data;
     }
 
-    console.log(' Messages data structure:', messagesData);
+    logger.debug('Structure des données messages', 'getMessages', { messagesData });
     
     if (Array.isArray(messagesData) && messagesData.length > 0) {
-      console.log(' First message object:', messagesData[0]);
-      console.log(' Available keys in message:', Object.keys(messagesData[0]));
-      console.log(' Mobile number in first message:', messagesData[0].mobileNumber, messagesData[0].mobile_number);
+      logger.debug('Premier message analysé', 'getMessages', {
+        firstMessage: messagesData[0],
+        availableKeys: Object.keys(messagesData[0]),
+        mobileNumber: messagesData[0].mobileNumber || messagesData[0].mobile_number
+      });
     }
 
     if (!Array.isArray(messagesData)) {
-      console.error('Expected array but got:', typeof messagesData, messagesData);
+      logger.error('Format de réponse invalide', 'getMessages', {
+        receivedType: typeof messagesData,
+        receivedData: messagesData
+      });
       throw new Error('Format de réponse invalide');
     }
 
     // Transformation des données
     const frontendMessages = messagesData.map(mapBackendToFrontend);
     
-    console.log('Messages after mapping:', frontendMessages);
-    console.log('First message after mapping:', frontendMessages[0]);
+    logger.info('Messages mappés avec succès', 'getMessages', {
+      totalMessages: frontendMessages.length,
+      firstMessage: frontendMessages[0]
+    });
 
     return frontendMessages;
 
   } catch (error: unknown) {
-    console.error(' Error fetching messages:', error);
+    logger.error('Erreur lors de la récupération des messages', 'getMessages', error);
     throw error;
   }
 }
 
 export async function closeMessage(contactId: number): Promise<void> {
   try {
-    console.log(`Closing message ${contactId}`);
+    logger.info(`Fermeture du message ${contactId}`, 'closeMessage');
     await apiClient.patch(`/admin/messages/${contactId}/close`);
-    console.log('Message closed');
+    logger.info(`Message ${contactId} fermé avec succès`, 'closeMessage');
   } catch (error: unknown) {
-    console.error(`Error closing message ${contactId}:`, error);
+    logger.error(`Erreur lors de la fermeture du message ${contactId}`, 'closeMessage', error);
     throw error;
   }
 }
 
 export async function reopenMessage(contactId: number): Promise<void> {
   try {
-    console.log(`Reopening message ${contactId}`);
+    logger.info(`Réouverture du message ${contactId}`, 'reopenMessage');
     
     await apiClient.patch(`/admin/messages/${contactId}/reopen`);
-    console.log('Message reopened');
+    logger.info(`Message ${contactId} rouvert avec succès`, 'reopenMessage');
   } catch (error: unknown) {
-    console.error(`Error reopening message ${contactId}:`, error);
+    logger.error(`Erreur lors de la réouverture du message ${contactId}`, 'reopenMessage', error);
     throw error;
   }
 }
 
 export async function deleteMessage(contactId: number): Promise<void> {
   try {
-    console.log(`Deleting message ${contactId}`);
+    logger.info(`Suppression du message ${contactId}`, 'deleteMessage');
    
     await apiClient.delete(`/admin/messages/${contactId}`);
-    console.log('Message deleted');
+    logger.info(`Message ${contactId} supprimé avec succès`, 'deleteMessage');
   } catch (error: unknown) {
-    console.error(`Error deleting message ${contactId}:`, error);
+    logger.error(`Erreur lors de la suppression du message ${contactId}`, 'deleteMessage', error);
     throw error;
   }
 }
-
 
 // ACTIONS POUR REACT ROUTER (CORRIGÉ)
 export async function contactAction({ request }: ActionFunctionArgs): Promise<ContactActionData> {
   try {
     const formData = await request.formData();
-    console.log(' FormData entries:');
-    for (const [key, value] of formData.entries()) {
-      console.log(`  ${key}: ${value}`);
-    }
+    
+    logger.debug('Données du formulaire reçues', 'contactAction', {
+      formDataEntries: Array.from(formData.entries())
+    });
 
     const contactData: ContactData = {
       name: formData.get('name') as string,
@@ -215,13 +222,18 @@ export async function contactAction({ request }: ActionFunctionArgs): Promise<Co
       message: formData.get('message') as string,
     };
 
-    console.log('Parsed contact data:', contactData);
+    logger.debug('Données de contact parsées', 'contactAction', { contactData });
 
     const result = await submitContact(contactData);
     
     if (result.success) {
+      logger.info('Action de contact réussie', 'contactAction', { contactId: result.contactId });
       return { success: true };
     } else {
+      logger.warn('Action de contact échouée', 'contactAction', {
+        error: result.error,
+        validationErrors: result.validationErrors
+      });
       return {
         success: false,
         error: result.error,
@@ -230,7 +242,7 @@ export async function contactAction({ request }: ActionFunctionArgs): Promise<Co
     }
 
   } catch (error: unknown) {
-    console.error('Contact action error:', error);
+    logger.error('Erreur lors de l\'action de contact', 'contactAction', error);
     
     const errorInfo = handleApiError(error);
     
@@ -245,16 +257,18 @@ export async function contactAction({ request }: ActionFunctionArgs): Promise<Co
 // LOADERS POUR REACT ROUTER
 export async function messagesLoader(): Promise<ContactMessage[]> {
   try {
-    console.log('[MESSAGES LOADER] Fetching admin messages...');
+    logger.info('Chargement des messages admin', 'messagesLoader');
     
     const messages = await getMessages({ onlyOpen: true });
     
-    console.log('[MESSAGES LOADER] Messages loaded:', messages.length);
+    logger.info('Messages admin chargés avec succès', 'messagesLoader', {
+      count: messages.length
+    });
     
     return messages;
     
   } catch (error: unknown) {
-    console.error('[MESSAGES LOADER] Failed to fetch messages:', error);
+    logger.error('Échec du chargement des messages admin', 'messagesLoader', error);
     const errorMessage = getErrorMessage(error);
     throw new Response(errorMessage, { status: 500 });
   }
@@ -262,21 +276,22 @@ export async function messagesLoader(): Promise<ContactMessage[]> {
 
 export async function contactsLoader(): Promise<ContactMessage[]> {
   try {
-    console.log('[CONTACTS LOADER] Fetching all contacts...');
+    logger.info('Chargement de tous les contacts', 'contactsLoader');
     
     const contacts = await getMessages();
     
-    console.log('[CONTACTS LOADER] Contacts loaded:', contacts.length);
+    logger.info('Contacts chargés avec succès', 'contactsLoader', {
+      count: contacts.length
+    });
     
     return contacts;
     
   } catch (error: unknown) {
-    console.error('[CONTACTS LOADER] Failed to fetch contacts:', error);
+    logger.error('Échec du chargement des contacts', 'contactsLoader', error);
     const errorMessage = getErrorMessage(error);
     throw new Response(errorMessage, { status: 500 });
   }
 }
-
 
 // SERVICE EXPORT
 const contactService = {
@@ -293,7 +308,7 @@ const contactService = {
   contactAction,
   messagesLoader,
   contactsLoader,
-  contactInfoLoader, // LOADER DYNAMIQUE
+  contactInfoLoader,
 };
 
 export default contactService;
