@@ -17,7 +17,6 @@ import Orders from './features/orders/pages/Orders.tsx';
 import AdminOrders from './features/orders/pages/AdminOrders.tsx';
 import Profile from './features/profile/pages/Profile.tsx';
 import Register from './features/auth/pages/Register.tsx';
-import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import OrderSuccess from './features/orders/pages/OrderSuccess.tsx';
 import { Provider } from 'react-redux';
@@ -30,13 +29,14 @@ import { store, persistor } from './shared/store/store.ts';
 import ContactPage from './features/contacts/pages/ContactPage.tsx';
 import { contactAction, contactInfoLoader, messagesLoader } from './features/contacts/services/contactService.ts';
 import AdminMessagesPage from './features/contacts/pages/ AdminMessagesPage.tsx';
-import { adminOrdersLoader, ordersLoader } from './features/orders/services/orderService.ts';
+import { adminOrdersLoader, customerOrdersPaginatedLoader } from './features/orders/services/orderService.ts';
 import { usersLoader } from './features/users/services/userService.ts';
 import { profileAction, profileLoader } from './features/profile/services/profileService.ts';
 import ProductGalleryPage from './features/products/pages/admin/ProductGalleryPage.tsx';
 import ProductDetail from './features/products/pages/public/ProductDetail.tsx';
 import { productLoader } from './features/products/loaders/productLoader.ts';
 import { logger } from './shared/types/errors.types.ts';
+import { stripePromise } from './config/tripe.ts';
 
 // COMPOSANT WRAPPER POUR INITIALISATION CSRF token
 // eslint-disable-next-line react-refresh/only-export-components
@@ -60,8 +60,6 @@ function AppWrapper() {
   return <App />;
 }
 
-const stripePromise = loadStripe(
-  "pk_test_51OhtIUDWbglQHB6CdSDFxtaP6MtNj16Ul1mpyARfmYpFWv9cWn7VXf72D4EUSnkBDzIoBoFhXGB45954dzle1M6g00fni1jV40");
 
 // Cette approche utilise la syntaxe JSX pour définir les routes (alternative à l'objet JavaScript)
 const routeDefinitions = createRoutesFromElements(
@@ -72,9 +70,7 @@ const routeDefinitions = createRoutesFromElements(
     <Route path="/home" element={<Home />} />
     <Route path="/about" element={<About />} />
     <Route path="/contact" element={<ContactPage />} action={contactAction}loader={contactInfoLoader}/>
-    <Route 
-      path="/products/:productId" element={<ProductDetail />} loader={productLoader}
-    />
+    <Route path="/products/:productId" element={<ProductDetail />} loader={productLoader}/>
     
     <Route path="/login" element={<Login />} />
     <Route path="/register" element={<Register />} />
@@ -89,7 +85,7 @@ const routeDefinitions = createRoutesFromElements(
     <Route element={<ProtectedRoute />}>
       <Route path="/checkout" element={<CheckoutForm />} />
       <Route path="/order-success" element={<OrderSuccess />} />
-      <Route path="/orders" element={<Orders />} loader={ordersLoader} />
+      <Route path="/orders" element={<Orders />} loader={customerOrdersPaginatedLoader} />
 
       <Route path="/admin/orders"element={<AdminOrders />}loader={adminOrdersLoader}/>
       <Route path="/admin/messages" element={<AdminMessagesPage />} loader={messagesLoader}/>

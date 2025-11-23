@@ -17,10 +17,10 @@ import type { StripeElementChangeEvent } from "../types/payment.pytes";
 import { useAppDispatch, useAppSelector } from "../../auth/hooks/redux";
 import { createOrder, processPayment } from "../services/paymentService";
 import apiClient from "../../../shared/api/apiClient";
+import { handleApiError, logger } from "../../../shared/types/errors.types";
 
 
 export default function CheckoutForm() {
-
   // HOOKS - Récupération des données globales AVEC REDUX
   const { user } = useAuth();
   const dispatch = useAppDispatch();
@@ -75,8 +75,6 @@ export default function CheckoutForm() {
   };
 
   // SOUMISSION DU FORMULAIRE - Flux complet de paiement
-  // SOUMISSION DU FORMULAIRE - Flux complet de paiement
-  // SOUMISSION DU FORMULAIRE - Flux complet de paiement
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
 
@@ -105,10 +103,10 @@ export default function CheckoutForm() {
     setErrorMessage("");
 
     try {
-      // ✅ CONVERSION PRIX EN CENTIMES (UNE SEULE FOIS)
+      // CONVERSION PRIX EN CENTIMES (UNE SEULE FOIS)
       const amountInCents = Math.round(totalPrice * 100);
       
-      console.log("💰 Prix traitement:", {
+      logger.info("Prix traitement", "CheckoutForm", {
         totalPriceEuros: totalPrice,
         amountInCents: amountInCents,
         cartItems: cart.length
@@ -120,25 +118,28 @@ export default function CheckoutForm() {
         elements,
         user,
         cart,
-        totalPrice: amountInCents // ✅ EN CENTIMES
+        totalPrice: amountInCents // EN CENTIMES
       });
 
       if (!paymentResult.success || !paymentResult.paymentIntent) {
-        setErrorMessage(paymentResult.error || "Payment failed.");
+        logger.error("Échec du processus de paiement", "CheckoutForm", null, {
+          error: paymentResult.error,
+          userId: user.id
+        });
+        setErrorMessage(paymentResult.error || "Le paiement a échoué.");
         return;
       }
 
       toast.success("Paiement effectué avec succès !");
 
-      // ✅ FORCER RÉCUPÉRATION DU TOKEN CSRF
-      console.log("⏳ Récupération du token CSRF...");
+      // FORCER RÉCUPÉRATION DU TOKEN CSRF
+      logger.debug("Récupération du token CSRF", "CheckoutForm");
       
       // Option A: Requête GET pour régénérer le token
       try {
-        await apiClient.get('/csrf-token'); // Endpoint à créer si nécessaire
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        await apiClient.get('/csrf-token');
       } catch (error) {
-        console.warn("⚠️ Endpoint /csrf-token non disponible");
+        logger.warn("Endpoint /csrf-token non disponible", "CheckoutForm", error);
       }
 
       // Option B: Attendre 1 seconde
@@ -150,34 +151,50 @@ export default function CheckoutForm() {
         .find(row => row.startsWith('XSRF-TOKEN='))
         ?.split('=')[1];
       
-      console.log("🔐 CSRF Token disponible:", csrfToken ? "✅ OUI" : "❌ NON");
+      logger.debug("Statut CSRF Token", "CheckoutForm", {
+        csrfTokenAvailable: !!csrfToken
+      });
 
       if (!csrfToken) {
-        console.error("❌ CSRF Token manquant après attente");
+        logger.error("CSRF Token manquant après attente", "CheckoutForm");
         // Continuer quand même, l'erreur sera gérée par createOrder
       }
 
       // ÉTAPE 2: CRÉATION DE LA COMMANDE
       const orderResult = await createOrder(
-        totalPrice, // ✅ EN EUROS pour la base de données
+        totalPrice, // EN EUROS pour la base de données
         paymentResult.paymentIntent,
         cart
       );
 
       if (!orderResult.success) {
+        logger.error("Échec de la création de commande", "CheckoutForm", null, {
+          error: orderResult.error,
+          paymentIntentId: paymentResult.paymentIntent.id
+        });
         setErrorMessage(orderResult.error || "La commande a échoué.");
         return;
       }
 
       // SUCCÈS
-      console.log("✅ Commande créée:", orderResult.orderId);
+      logger.info("Commande créée avec succès", "CheckoutForm", {
+        orderId: orderResult.orderId,
+        paymentIntentId: paymentResult.paymentIntent.id,
+        totalAmount: totalPrice
+      });
+      
       sessionStorage.setItem("skipRedirectPath", "true");
       dispatch(clearCart());
       navigate("/order-success");
 
     } catch (error: unknown) {
-      console.error("❌ Checkout process error:", error);
-      setErrorMessage("Une erreur inattendue s'est produite. Veuillez réessayer.");
+      const errorInfo = handleApiError(error);
+      logger.error("Erreur lors du processus de checkout", "CheckoutForm", error, {
+        errorMessage: errorInfo.message,
+        status: errorInfo.status,
+        userId: user?.id
+      });
+      setErrorMessage(errorInfo.message);
     } finally {
       setIsProcessing(false);
     }

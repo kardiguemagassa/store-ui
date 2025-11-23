@@ -111,6 +111,15 @@ export interface NetworkError {
   originalError?: unknown;
 }
 
+// Détecte l'environnement sans process.env - DÉPLACÉ AVANT LE LOGGER
+export const getEnvironment = (): 'development' | 'production' => {
+  return window.location.hostname === 'localhost' || 
+         window.location.hostname === '127.0.0.1' ||
+         window.location.hostname === ''
+    ? 'development' 
+    : 'production';
+};
+
 // TYPE GUARDS UNIFIÉS
 const isErrorResponseDto = (data: unknown): data is ErrorResponseDto => {
   return (
@@ -138,25 +147,18 @@ export const isNetworkError = (error: unknown): error is NetworkError => {
   return typeof error === 'object' && error !== null && 'type' in error;
 };
 
-// LOGGER PROFESSIONNEL
+// LOGGER PROFESSIONNEL CORRIGÉ
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
-interface LogEntry {
-  timestamp: string;
-  level: LogLevel;
-  context?: string;
-  message: string;
-  error?: {
-    name: string;
-    message: string;
-    stack?: string;
-  };
-  metadata?: Record<string, unknown>;
-}
-
 class Logger {
+  private isDevelopment: boolean;
+
+  constructor() {
+    // Initialiser dans le constructeur
+    this.isDevelopment = getEnvironment() === 'development';
+  }
+
   private shouldLog(level: LogLevel): boolean {
-    const environment = getEnvironment();
     const levelPriority = {
       debug: 0,
       info: 1,
@@ -164,55 +166,100 @@ class Logger {
       error: 3
     };
 
-    const currentLevel = environment === 'development' ? 'debug' : 'warn';
+    const currentLevel = this.isDevelopment ? 'debug' : 'warn';
     return levelPriority[level] >= levelPriority[currentLevel];
-  }
-
-  private formatEntry(level: LogLevel, message: string, context?: string, error?: unknown, metadata?: Record<string, unknown>): LogEntry {
-    return {
-      timestamp: new Date().toISOString(),
-      level,
-      context,
-      message,
-      error: error instanceof Error ? {
-        name: error.name,
-        message: error.message,
-        stack: getEnvironment() === 'development' ? error.stack : undefined
-      } : undefined,
-      metadata
-    };
   }
 
   private log(level: LogLevel, message: string, context?: string, error?: unknown, metadata?: Record<string, unknown>): void {
     if (!this.shouldLog(level)) return;
 
-    const entry = this.formatEntry(level, message, context, error, metadata);
-    
-    switch (level) {
-      case 'error':
-        console.error(entry);
-        break;
-      case 'warn':
-        console.warn(entry);
-        break;
-      case 'info':
-        console.info(entry);
-        break;
-      case 'debug':
-        console.debug(entry);
-        break;
+    const timestamp = new Date().toISOString();
+    const contextStr = context ? `[${context}]` : '';
+
+    // FORMATAGE PROFESSIONNEL - Évite "non disponible"
+    if (this.isDevelopment) {
+      // Développement : format lisible avec couleurs
+      const styles = {
+        error: 'color: red; font-weight: bold;',
+        warn: 'color: orange; font-weight: bold;',
+        info: 'color: blue; font-weight: bold;',
+        debug: 'color: gray;'
+      };
+
+      const timeStr = timestamp.split('T')[1].split('.')[0]; // HH:MM:SS
+      
+      console.log(
+        `%c[${timeStr}] %c${level.toUpperCase()}%c ${contextStr} ${message}`,
+        'color: gray',
+        styles[level],
+        'color: inherit',
+        ...this.formatMetadata(metadata, error)
+      );
+    } else {
+      // Production : format JSON structuré
+      const logEntry = {
+        timestamp,
+        level,
+        context,
+        message,
+        error: error instanceof Error ? error.message : undefined,
+        ...metadata
+      };
+      console.log(JSON.stringify(logEntry));
     }
 
-    // En production, vous pourriez envoyer à un service de logging
-    this.sendToLoggingService(entry);
+    // Appel correct avec les paramètres individuels
+    this.sendToLoggingService(timestamp, level, message, context, error, metadata);
   }
 
-  private sendToLoggingService(entry: LogEntry): void {
-    if (getEnvironment() === 'production') {
-      // Exemple: envoyer à Sentry, LogRocket, etc.
-      // window._sentry?.captureException(entry.error);
-      // Cette fonction peut être implémentée plus tard
-      console.log('Logging service:', entry);
+  private formatMetadata(metadata?: Record<string, unknown>, error?: unknown): unknown[] {
+    const result: unknown[] = [];
+    
+    if (metadata && Object.keys(metadata).length > 0) {
+      result.push(metadata);
+    }
+    
+    if (error instanceof Error) {
+      result.push({
+        error: error.message,
+        ...(this.isDevelopment && { stack: error.stack })
+      });
+    } else if (error) {
+      result.push({ error });
+    }
+    
+    return result;
+  }
+
+  private sendToLoggingService(
+    timestamp: string,
+    level: LogLevel,
+    message: string,
+    context?: string,
+    error?: unknown,
+    metadata?: Record<string, unknown>
+  ): void {
+    if (!this.isDevelopment) {
+      // En production, envoyer à un service externe
+      // Exemple: Sentry, LogRocket, etc.
+      // window._sentry?.captureException(error);
+      
+      // Pour l'instant, on log en JSON pour la production
+      const logEntry = {
+        timestamp,
+        level,
+        context,
+        message,
+        error: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : error,
+        metadata
+      };
+      
+      // Simulation d'envoi à un service externe
+      console.log('📡 Logging service:', JSON.stringify(logEntry));
     }
   }
 
@@ -382,15 +429,6 @@ export const getErrorMessage = (error: unknown): string => {
 // Pour les formulaires React Router
 export const handleError = (error: unknown): string => {
   return getErrorMessage(error);
-};
-
-// Détecte l'environnement sans process.env
-export const getEnvironment = (): 'development' | 'production' => {
-  return window.location.hostname === 'localhost' || 
-         window.location.hostname === '127.0.0.1' ||
-         window.location.hostname === ''
-    ? 'development' 
-    : 'production';
 };
 
 // GESTION SPÉCIFIQUE POUR L'AUTH
