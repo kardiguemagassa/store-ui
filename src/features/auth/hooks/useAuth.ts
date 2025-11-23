@@ -32,42 +32,23 @@ export function useAuth() {
   const error = useAppSelector((state) => state.auth.error);
 
   
-  // DÉRIVATIONS
-  /**
-   * V4: Extraction des rôles avec gestion null-safe
-   */
+  // V4: Extraction des rôles avec gestion null-safe
   const roles = user?.roles ?? [];
   
-  /**
-   * V4: Vérification admin
-   */
+  // Vérification admin
   const isAdmin = roles.includes("ROLE_ADMIN");
 
-  // ============================================
-  // ACTIONS
-  // ============================================
-  
-  /**
-   * V4: Déconnexion asynchrone
-   * Appelle le backend pour révoquer le refresh token
-   */
+  // Déconnexion asynchrone Appelle le backend pour révoquer le refresh token
   const logout = () => {
     dispatch(logoutAsync());
   };
 
-  /**
-   * V4: Mise à jour utilisateur (optionnel)
-   * Note: À implémenter dans authSlice si nécessaire
-   */
+  // Note: À implémenter dans authSlice si nécessaire Mise à jour utilisateur (optionnel)
   const updateUser = (userData: Partial<User>) => {
     // TODO: Implémenter updateUser dans authSlice si besoin
     console.warn('updateUser not implemented yet', userData);
   };
 
-  // ============================================
-  // RETURN
-  // ============================================
-  
   return {
     // État
     jwtToken,

@@ -1,11 +1,4 @@
-/**
- * TYPES POUR L'AUTHENTIFICATION - VERSION UNIFIÉE ET CORRIGÉE
- */
-
-// ============================================
-// CORE USER TYPES
-// ============================================
-
+// CORE USER TYPES POUR L'AUTHENTIFICATION 
 export interface Address {
   street: string;
   city: string;
@@ -43,10 +36,7 @@ export interface UserProfile {
   avatar?: string;
 }
 
-// ============================================
 // AUTH STATE & SESSION TYPES
-// ============================================
-
 export interface AuthState {
   user: User | null;
   jwtToken: string | null;
@@ -74,19 +64,16 @@ export interface SessionOptions {
   duration: number;
 }
 
-// ============================================
 // API REQUEST/RESPONSE TYPES
-// ============================================
-
 export interface LoginCredentials {
   username: string;
   password: string;
   rememberMe?: boolean;
 }
 
-// ✅ CORRIGÉ: message optionnel dans LoginResponse
+//message optionnel dans LoginResponse
 export interface LoginResponse {
-  message?: string;  // ✅ Rend optionnel
+  message?: string;  // Rend optionnel
   user: User;
   jwtToken: string;
   refreshToken: string;
@@ -121,10 +108,7 @@ export interface ResetPasswordRequest {
   confirmPassword: string;
 }
 
-// ============================================
 // FORM TYPES
-// ============================================
-
 export interface LoginFormData {
   username: string;
   password: string;
@@ -149,10 +133,7 @@ export interface ResetPasswordFormData {
   confirmPassword: string;
 }
 
-// ============================================
 // ERROR & VALIDATION TYPES
-// ============================================
-
 export interface FormErrors {
   name?: string;
   email?: string;
@@ -186,23 +167,20 @@ export interface ActionData {
   jwtToken?: string;
 }
 
-// ✅ CORRIGÉ: LoginActionResponse avec son propre type
+// LoginActionResponse avec son propre type
 export interface LoginActionResponse extends ActionData {
   user?: User;
   jwtToken?: string;
 }
 
-// ✅ CORRIGÉ: RegisterActionResponse avec des champs spécifiques
+// RegisterActionResponse avec des champs spécifiques
 export interface RegisterActionResponse extends ActionData {
   // Ajout de champs spécifiques à l'inscription
   userId?: number;
   requiresEmailVerification?: boolean;
 }
 
-// ============================================
 // TOKEN & PERMISSION TYPES
-// ============================================
-
 export interface JwtClaims {
   sub?: string;
   userId?: number;
@@ -229,10 +207,7 @@ export interface Permission {
 
 export type PermissionCheck = (permission: Permission) => boolean;
 
-// ============================================
 // HELPER TYPES
-// ============================================
-
 export interface AuthResult {
   success: boolean;
   error?: string;
@@ -254,10 +229,7 @@ export interface FieldValidation {
   error?: string;
 }
 
-// ============================================
 // COMPONENT PROP TYPES
-// ============================================
-
 export interface LoginFormProps {
   actionData?: LoginActionResponse;
   isLoading?: boolean;
@@ -287,10 +259,7 @@ export interface RegisterActionResponse {
   };
 }
 
-// ============================================
 // UTILITY FUNCTIONS
-// ============================================
-
 export function getUserDisplayName(user: User | null): string {
   if (!user) return 'Utilisateur';
   return user.name || user.username || user.email || 'Utilisateur';
